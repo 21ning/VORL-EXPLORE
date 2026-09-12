@@ -1,0 +1,7 @@
+{
+  "care_tracked_diff_sha256_before": "841863748eed8f2415353ab8320a32fbd33fa83555a5ddf0089fcba4c86d067c",
+  "care_tracked_diff_sha256_after": "841863748eed8f2415353ab8320a32fbd33fa83555a5ddf0089fcba4c86d067c",
+  "care_tracked_changes_unchanged": true,
+  "vorl_separate_checkout": "/root/autodl-tmp/vorl-explore-isolated-20260912/revision-20260913",
+  "vorl_separate_python_prefix": "/root/autodl-tmp/vorl-explore-isolated-20260912/envs/vorl310"
+}

@@ -1,6 +1,7 @@
 # Method-level execution report
 
-Run date: 2026-09-12 to 2026-09-13 (Asia/Shanghai).
+Latest corrected runs: 2026-09-13 (Asia/Shanghai). Earlier results are retained
+in Git history at `0948249`; see [RECOVERY_FIX.md](RECOVERY_FIX.md).
 
 ## Proven scope
 
@@ -24,7 +25,7 @@ modified or imported. The upstream release and input archive remain preserved.
 - Clear-margin training examples: 46,860, including 14,746 positive and 32,114 negative.
 - Regularized BCE: 0.693147 before fitting, 0.432006 after fitting. This is a
   training optimization check, not evidence of held-out task performance.
-- All 28 unit tests passed in the isolated runtime; `pip check` passed.
+- All 30 unit tests passed in the isolated runtime; `pip check` passed.
 - The tested CPU package versions are recorded in `requirements-cpu.lock`.
 
 ## Held-out dynamic execution
@@ -34,18 +35,18 @@ modified or imported. The upstream release and input archive remain preserved.
 | Exploring robots | 4 | 16 |
 | Moving obstacles | 8 | 32 |
 | Decision steps | 320 | 480 |
-| Observed-cell fraction | 0.996875 | 0.99796875 |
-| Actual visited-cell overlap | 0.193676 | 0.310423 |
-| Executed A* decisions, after recovery override | 642 | 2858 |
-| Executed RL decisions, after recovery override | 470 | 3591 |
-| Recovery decisions | 168 | 1231 |
-| Recorded hysteresis state changes | 35 | 228 |
+| Observed-cell fraction | 0.996875 | 0.9984375 |
+| Actual visited-cell overlap | 0.213018 | 0.299736 |
+| Executed A* decisions, after recovery override | 642 | 2860 |
+| Executed RL decisions, after recovery override | 470 | 3590 |
+| Recovery decisions | 168 | 1230 |
+| Final per-step gate state changes | 14 | 46 |
 | Coupled allocation rounds checked | 284 | 480 |
 | Gate updates at evaluation time | 0 | 0 |
 | Stop reason | Horizon | Horizon |
 | Complete exploration achieved | No | No |
 
-Recorded wall times were approximately 30.6 and 199.1 seconds on the shared
+Recorded wall times were approximately 32.7 and 201.3 seconds on the shared
 server with CPU inference. These are observations, not controlled speed benchmarks.
 Do not interpret two runs as a success-rate estimate or compare their numbers
 directly with the paper's different implementation and trained policy.
@@ -56,6 +57,9 @@ directly with the paper's different implementation and trained policy.
 action compatibility, unique occupancy, static-obstacle exclusion, half-speed
 dynamic movement and sensor-patch agreement. It recomputes frozen gate scores
 from recorded features and checks checkpoint/configuration provenance.
+It additionally recomputes planner feasibility and replays all final switch
+states, including the infeasibility fallback, to verify the switch count.
+Run and training-gate method-source hashes must match the verifier checkout.
 
 For every recorded allocation round it recomputes utilities, BFS distances,
 pose/previous-goal repulsion and the fidelity-coupled objective, and checks the
@@ -65,25 +69,17 @@ The first, middle and last frames of both GIFs were also visually inspected.
 
 ## Clean-checkout repeatability
 
-After publishing implementation commit
-`b3e7073f633b35645ca48c16f9d78ed93f015e01`, a new checkout was cloned from GitHub.
-Both held-out scenarios were rerun from that clean source checkout with the
-committed gate. All recorded trajectory arrays and the complete trajectory,
-allocation, configuration and verification files matched the committed examples
-exactly. Summary values matched except for wall-clock runtime.
-
-The 28 tests and dependency checks passed in the clean checkout. All 37 pinned
-package versions matched the lockfile. This reused the existing isolated VORL
-environment and verified policy; it does not claim a second fresh environment
-installation or a second download. Machine-readable checks are saved in
-[`examples/clean-checkout-verification.json`](../examples/clean-checkout-verification.json).
-Later documentation-only changes do not change the tested method implementation.
+The previous implementation's clean-checkout proof is preserved separately in
+[`examples/clean-checkout-pre-recovery.json`](../examples/clean-checkout-pre-recovery.json).
+It applies to commit `b3e7073`, not to the corrected implementation. The corrected
+version has passed the full runtime checks above; a new clean-checkout repeat
+will be recorded separately after publishing its checkpoint and artifacts.
 
 ## Remaining limitations
 
 Both held-out examples terminate at their predeclared horizons. The 40×40 run
 leaves five unknown corner cells and five remaining frontiers, none reachable
-in the final shared map. The 80×80 run leaves thirteen unknown cells. The strict
+in the final shared map. The 80×80 run leaves ten unknown cells. The strict
 no-frontiers criterion is unchanged; incomplete runs are not relabeled as successes.
 
 The simulator, gate fitting conventions and unreported numerical settings are

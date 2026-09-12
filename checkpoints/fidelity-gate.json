@@ -36,7 +36,7 @@
   "initialization": "zero weights for data collection; pooled logistic BCE fitting on actual delayed outcomes",
   "transfer": "shared warm-start coefficients copied to each evaluation robot; main evaluation is frozen",
   "config_sha256": "eabf2065a4933d10fbe4bae03a671183e7c45a6c1351841231a3792e48abf54b",
-  "method_source_sha256": "e7bc57608ec8a82bc1775f33d6cd551e4df0966f43359e20ae6c633d9e10e3e2",
+  "method_source_sha256": "5f9fa3d8f9129fe5fe8d8e3a39d5a3a100479e2fd83774dc650fb8fd8f9d7a2f",
   "data_sha256": {
     "seed-0/gate-data.npz": "887eae595e7ce7e69df2f661fea3c9fffa300ab712938c7e21f0fb13befbe38c",
     "seed-1/gate-data.npz": "f1567663dbd6f5ca6dc1606af4075d1bf0947366357b4d9a00f82ad225fc1ae4",

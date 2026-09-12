@@ -55,7 +55,7 @@ complete exploration**. Full data and checks are under `examples/`.
 | Scenario | Steps | Observed cells | Termination |
 | --- | ---: | ---: | --- |
 | 40×40, 4 robots, 8 moving obstacles, seed 1000 | 320 | 99.6875% | Horizon; residual frontiers |
-| 80×80, 16 robots, 32 moving obstacles, seed 1001 | 480 | 99.7969% | Horizon; residual frontiers |
+| 80×80, 16 robots, 32 moving obstacles, seed 1001 | 480 | 99.8438% | Horizon; residual frontiers |
 
 ![40x40 recorded method reconstruction](media/vorl-40x40.gif)
 
@@ -78,6 +78,7 @@ The supplied checkpoint used 46,860 clear-margin samples. All reconstruction
 settings are fixed in `configs/reconstruction.json`. This refits the small gate,
 **not** the large upstream EPOM policy.
 
+These examples include the [recovery and switch-counting correction](docs/RECOVERY_FIX.md).
 The numerical implementation is in `vorl/`; command-line entry points are in
 `scripts/`. The historical reference-only diagnostic is separate and is never
 labeled as the main method. See the [run report](docs/REPRODUCTION_REPORT.md),
