@@ -69,11 +69,23 @@ The first, middle and last frames of both GIFs were also visually inspected.
 
 ## Clean-checkout repeatability
 
-The previous implementation's clean-checkout proof is preserved separately in
-[`examples/clean-checkout-pre-recovery.json`](../examples/clean-checkout-pre-recovery.json).
-It applies to commit `b3e7073`, not to the corrected implementation. The corrected
-version has passed the full runtime checks above; a new clean-checkout repeat
-will be recorded separately after publishing its checkpoint and artifacts.
+A new, clean Git worktree was created from GitHub `main` at corrected artifact
+commit `18dc818f804846b7459127cd11391d585f5fbeb1`. Both full scenarios were rerun
+with the committed gate. All trajectory arrays, including final switch states
+and planner-feasibility flags, matched exactly. The trajectory, allocation,
+configuration and verification files were byte-identical; summary values differed
+only in wall-clock runtime.
+
+Thirty tests passed again and `pip check` passed. All 37 pinned dependency
+versions matched the lockfile. This reused the independent VORL environment and
+verified EPOM policy; it is not a claim of another fresh dependency installation.
+The machine-readable proof is
+[`examples/clean-checkout-verification.json`](../examples/clean-checkout-verification.json).
+Subsequent documentation-only changes do not change the tested implementation.
+
+The earlier implementation's proof remains separately available in
+[`examples/clean-checkout-pre-recovery.json`](../examples/clean-checkout-pre-recovery.json);
+that record applies to `b3e7073`, not to the corrected results.
 
 ## Remaining limitations
 

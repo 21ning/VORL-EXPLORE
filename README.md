@@ -83,4 +83,6 @@ The numerical implementation is in `vorl/`; command-line entry points are in
 `scripts/`. The historical reference-only diagnostic is separate and is never
 labeled as the main method. See the [run report](docs/REPRODUCTION_REPORT.md),
 [source audit](docs/SOURCE_AUDIT.md), [model provenance](docs/UPSTREAM_ARTIFACTS.md)
-and [third-party notices](THIRD_PARTY_NOTICES.md).
+and [third-party notices](THIRD_PARTY_NOTICES.md). The
+[completion evidence](docs/COMPLETION_AUDIT.md) maps each requested deliverable
+to implementation and runtime checks.
