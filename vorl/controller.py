@@ -49,12 +49,9 @@ class Controller:
                                    interaction_radius=self.config["interaction_radius"],
                                    stuck_window=self.config["history_window"])
         fidelity = self.model.predict(features)
+        previous_switch_states = [gate.planner_selected for gate in self.switches]
         for i, gate in enumerate(self.switches):
-            previous = gate.planner_selected
             gate.update(fidelity[i])
-            changed = previous != gate.planner_selected
-            self.switch_history[i].append(int(changed))
-            self.counts["mode_switches"] += int(changed)
         candidates = frontiers(shared_map)
         previous_goals = self.goals.copy()
         candidate_set = set(candidates)
@@ -77,13 +74,19 @@ class Controller:
                                                                 memory_radius=self.policy.radius,
                                                                 sensing_radius=self.config["sensing_radius"])
         reactive, _ = self.policy.act(grids, coordinates, targets)
-        actions, modes = [], []
+        actions, modes, planner_feasible = [], [], []
         filter_events = np.zeros(self.n, dtype=np.int32)
         for i, (pos, path, gate) in enumerate(zip(positions, plans, self.switches)):
             planner_action = plan_action(path, pos)
             valid_plan = bool(path) and masks[i][planner_action]
+            planner_feasible.append(bool(valid_plan))
             if not valid_plan:
                 gate.planner_selected = False
+            # Feasibility is part of the final gate state at this decision step.
+            # A rejected A* attempt must not create a fictitious RL -> A* switch.
+            changed = previous_switch_states[i] != gate.planner_selected
+            self.switch_history[i].append(int(changed))
+            self.counts["mode_switches"] += int(changed)
             if gate.planner_selected:
                 action, mode = planner_action, 0
             else:
@@ -98,6 +101,7 @@ class Controller:
             if self.recovery_remaining[i] > 0:
                 # Use the real reactive proposal where feasible; on a stall or
                 # invalid proposal choose a seeded feasible symmetry-breaking move.
+                action = int(reactive[i])
                 moving = np.flatnonzero(masks[i][1:]) + 1
                 if stalled or not masks[i][action] or action == 0:
                     action = int(self.rng.choice(moving)) if len(moving) else 0
@@ -111,6 +115,8 @@ class Controller:
             actions.append(action)
             modes.append(mode)
         return {"actions": actions, "modes": modes, "fidelity": fidelity, "features": features,
+                "planner_selected": [gate.planner_selected for gate in self.switches],
+                "planner_feasible": planner_feasible,
                 "goals": self.goals.copy(), "filter_events": filter_events,
                 "frontier_count": len(candidates), "assignment": assignment_audit,
                 "previous_goals": previous_goals, "refreshed": refresh}

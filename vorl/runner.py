@@ -50,7 +50,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
     sensor = world.observe()
     controller = Controller(sensor, policy, config, gate, seed=seed, adapt=adapt)
     initial_gate_weights, initial_gate_bias = controller.model.weights.copy(), controller.model.bias.copy()
-    records = {name: [] for name in ("known", "positions", "dynamic", "goals", "fidelity", "modes", "actions", "features")}
+    records = {name: [] for name in ("known", "positions", "dynamic", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
     delayed = deque(maxlen=config["history_window"])
     training_features, training_quality = [], []
     start = time.monotonic()
@@ -72,7 +72,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
                 row = {"step": step, "previous_goals": decision["previous_goals"], "refreshed": decision["refreshed"],
                        "audit": decision["assignment"]}
                 allocation.write(json.dumps(row, default=lambda value: value.item()) + "\n")
-            for name in ("fidelity", "modes", "actions", "features"):
+            for name in ("fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible"):
                 records[name].append(decision[name])
             records["goals"].append([goal if goal is not None else (-1, -1) for goal in decision["goals"]])
             next_sensor, env_interventions = world.step(decision["actions"])
@@ -112,6 +112,8 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
         "modes": np.asarray(records["modes"], dtype=np.uint8).reshape(-1, robots),
         "actions": np.asarray(records["actions"], dtype=np.uint8).reshape(-1, robots),
         "features": np.asarray(records["features"], dtype=np.float32).reshape(-1, robots, 8),
+        "planner_selected": np.asarray(records["planner_selected"], dtype=bool).reshape(-1, robots),
+        "planner_feasible": np.asarray(records["planner_feasible"], dtype=bool).reshape(-1, robots),
     }
     np.savez_compressed(output / "trajectory.npz", **arrays)
     if collect:
