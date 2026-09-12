@@ -1,0 +1,66 @@
+{
+  "verified": true,
+  "tested_commit": "b3e7073f633b35645ca48c16f9d78ed93f015e01",
+  "clean_source_checkout": true,
+  "dependency_environment": "Existing isolated VORL environment reused; not a fresh environment install",
+  "test_output": "............................                                             [100%]\n28 passed in 4.55s",
+  "dependency_check": "No broken requirements found.",
+  "runs": [
+    {
+      "size": 40,
+      "seed": 1000,
+      "steps": 320,
+      "arrays_identical": {
+        "static_map": true,
+        "known": true,
+        "positions": true,
+        "dynamic": true,
+        "goals": true,
+        "fidelity": true,
+        "modes": true,
+        "actions": true,
+        "features": true
+      },
+      "files_byte_identical": {
+        "trajectory.npz": true,
+        "allocation.jsonl": true,
+        "config.json": true,
+        "verification.json": true
+      },
+      "summary_identical_except_wall_seconds": true,
+      "trajectory_sha256": "aa707bf3ab4e188ae7883a2c87b84902d00547db487c649f174b836f1032d327",
+      "original_wall_seconds": 30.636022575199604,
+      "rerun_wall_seconds": 32.19124377518892,
+      "stop_reason": "horizon",
+      "success_no_frontiers": false
+    },
+    {
+      "size": 80,
+      "seed": 1001,
+      "steps": 480,
+      "arrays_identical": {
+        "static_map": true,
+        "known": true,
+        "positions": true,
+        "dynamic": true,
+        "goals": true,
+        "fidelity": true,
+        "modes": true,
+        "actions": true,
+        "features": true
+      },
+      "files_byte_identical": {
+        "trajectory.npz": true,
+        "allocation.jsonl": true,
+        "config.json": true,
+        "verification.json": true
+      },
+      "summary_identical_except_wall_seconds": true,
+      "trajectory_sha256": "9d2cf3cb05f3e0674d6b91d203ca4a9c42f0c4586240b8aae80faf6707da0f5d",
+      "original_wall_seconds": 199.13892051577568,
+      "rerun_wall_seconds": 203.88007134199142,
+      "stop_reason": "horizon",
+      "success_no_frontiers": false
+    }
+  ]
+}

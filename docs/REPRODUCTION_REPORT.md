@@ -61,6 +61,23 @@ For every recorded allocation round it recomputes utilities, BFS distances,
 pose/previous-goal repulsion and the fidelity-coupled objective, and checks the
 selected target. The GIF renderer consumes the recorded state arrays and reports
 which state indices it rendered. Every GIF frame is decoded after saving.
+The first, middle and last frames of both GIFs were also visually inspected.
+
+## Clean-checkout repeatability
+
+After publishing implementation commit
+`b3e7073f633b35645ca48c16f9d78ed93f015e01`, a new checkout was cloned from GitHub.
+Both held-out scenarios were rerun from that clean source checkout with the
+committed gate. All recorded trajectory arrays and the complete trajectory,
+allocation, configuration and verification files matched the committed examples
+exactly. Summary values matched except for wall-clock runtime.
+
+The 28 tests and dependency checks passed in the clean checkout. All 37 pinned
+package versions matched the lockfile. This reused the existing isolated VORL
+environment and verified policy; it does not claim a second fresh environment
+installation or a second download. Machine-readable checks are saved in
+[`examples/clean-checkout-verification.json`](../examples/clean-checkout-verification.json).
+Later documentation-only changes do not change the tested method implementation.
 
 ## Remaining limitations
 

@@ -74,7 +74,7 @@ Commands, after creating a separate Python 3.10 environment:
 
 ```bash
 python -m pip install -r requirements-diagnostic.txt
-python -m pytest -q
+python -m pytest -q tests/test_diagnostics.py
 python scripts/source_check.py --reference /path/to/extracted-reference --output runs/source-check.json
 python scripts/reference_smoke.py --reference /path/to/extracted-reference --output runs/reference-smoke
 ```
