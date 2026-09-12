@@ -1,0 +1,39 @@
+{
+  "profile": "paper_formula_reconstruction_upstream_epom",
+  "sensing_radius": 3,
+  "interaction_radius": 3,
+  "assignment_interval": 5,
+  "assignment": {
+    "lambda0": 0.25,
+    "lambda1": 1.0,
+    "rho0": 0.25,
+    "rho1": 1.0,
+    "interaction_radius": 3,
+    "sigma_position": 2.0,
+    "sigma_goal": 2.0,
+    "beta": 0.5
+  },
+  "gate": {
+    "low": 0.35,
+    "high": 0.65,
+    "dwell": 2,
+    "initial_planner": true
+  },
+  "history_window": 8,
+  "recovery_steps": 2,
+  "recovery_cooldown": 8,
+  "oscillation_switches": 4,
+  "quality_weights": [
+    0.05,
+    1.0,
+    2.0,
+    1.0
+  ],
+  "quality_margin": 0.25,
+  "update_interval": 4,
+  "gate_learning_rate": 0.02,
+  "gate_l2": 0.001,
+  "gate_fit_epochs": 100,
+  "gate_fit_batch_size": 512,
+  "notes": "R_s, R_u and obstacle speed 0.5 follow the paper. Other numerical values are declared reconstruction settings, not recovered original paper hyperparameters."
+}

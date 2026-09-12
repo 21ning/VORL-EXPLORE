@@ -1,0 +1,17 @@
+{
+  "verified": true,
+  "seed": 1001,
+  "state_count": 481,
+  "coupled_assignment_rounds_checked": 480,
+  "executed_modes": {
+    "astar": 2858,
+    "rl": 3591,
+    "recovery": 1231
+  },
+  "frozen_gate_formula_matches": true,
+  "sensor_state_matches_local_truth": true,
+  "state_action_consistency": true,
+  "dynamic_half_speed": true,
+  "profile": "paper_formula_reconstruction_upstream_epom",
+  "paper_original_weights_reproduced": false
+}
