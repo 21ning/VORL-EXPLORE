@@ -134,7 +134,7 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
         root = ET.fromstring(renderer.native_frame_svg(monitor, index))
         fog = [r for r in root.findall("s:rect", ns) if r.get("fill") == renderer.UNKNOWN_COLOR]
         assert sum(r.get("visibility") == "visible" for r in fog) == unknown_cells
-        assert all(r.get("opacity") == "1" for r in fog)
+        assert all(float(r.get("opacity")) == renderer.UNKNOWN_OPACITY == 0.55 for r in fog)
         layers = list(root)
         grid = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "grid"]
         assert len(grid) == 2 * (summary["size"] + 1)
@@ -178,7 +178,7 @@ def test_dynamic_square_switches_to_ordinary_occupancy_on_each_stop():
         assert len(squares) == 1
         square = squares[0]
         assert square.get("fill") == renderer.DYNAMIC_COLOR
-        assert float(square.get("opacity")) == renderer.DYNAMIC_OPACITY == 0.55
+        assert float(square.get("opacity")) == renderer.DYNAMIC_OPACITY == 1
         assert square.get("width") == square.get("height") == "100"
         assert (square.get("visibility") == "visible") == moving_now
         assert len(root.findall("s:circle", ns)) == 2  # Robot and its hidden goal only.
@@ -206,7 +206,7 @@ def test_moving_square_does_not_reveal_unobserved_obstacles():
     assert not monitor.entity_visible[:, 1].any()
 
 
-def test_moving_square_rasterizes_to_a_subtle_gray_white():
+def test_moving_square_rasterizes_to_solid_gray():
     pytest.importorskip("pogema")
     cairo = pytest.importorskip("cairosvg")
     from io import BytesIO
@@ -224,8 +224,30 @@ def test_moving_square_rasterizes_to_a_subtle_gray_white():
                         background_color="white")
     with Image.open(BytesIO(png)) as frame:
         rgb = frame.convert("RGB").getpixel((int(x), int(y)))
-    # Alpha compositing of #e0e0e0 at 55% over white yields approximately #eeeeee.
-    assert all(abs(channel - 238) <= 1 for channel in rgb)
+    assert rgb == (115, 115, 115)
+
+
+def test_unknown_mask_is_near_white_without_revealing_hidden_occupancy(tmp_path):
+    pytest.importorskip("pogema")
+    cairo = pytest.importorskip("cairosvg")
+    from io import BytesIO
+    from PIL import Image
+    _, data, summary = recording_fixture(tmp_path)
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 3))
+    # The same unknown tint covers a hidden static obstacle, a hidden dynamic
+    # obstacle, and hidden free space. Opacity is appearance, not privileged sight.
+    for index in [0, monitor.recorded_offset]:
+        svg = renderer.native_frame_svg(monitor, index)
+        png = cairo.svg2png(bytestring=svg.encode(), output_width=500, output_height=500,
+                            background_color="white")
+        with Image.open(BytesIO(png)) as image:
+            frame = image.convert("RGB")
+            for row, col in [(4, 4), (4, 3), (4, 0)]:
+                rgb = frame.getpixel((col * 100 + 50, row * 100 + 50))
+                # #e0e0e0 at 55% over white is approximately #eeeeee.
+                assert all(abs(channel - 238) <= 1 for channel in rgb)
+            if index == monitor.recorded_offset:
+                assert frame.getpixel((250, 250)) == (255, 255, 255)  # Observed free cell.
 
 
 def test_native_rectangle_motion_uses_xy_not_circle_centers():
@@ -236,7 +258,7 @@ def test_native_rectangle_motion_uses_xy_not_circle_centers():
     root = ET.fromstring(monitor.create_animation().render())
     ns = {"s": "http://www.w3.org/2000/svg"}
     square = next(r for r in root.findall("s:rect", ns) if r.get("data-layer") == "moving-obstacle")
-    assert square.get("fill") == renderer.DYNAMIC_COLOR == "#e0e0e0"
+    assert square.get("fill") == renderer.DYNAMIC_COLOR == "#737373"
     assert float(square.get("opacity")) == renderer.DYNAMIC_OPACITY
     animations = {a.get("attributeName"): a for a in square.findall("s:animate", ns)}
     assert {"x", "y", "visibility"} <= animations.keys()

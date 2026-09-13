@@ -29,24 +29,27 @@
     "shared_map_replay_matches_recording": true,
     "intro_first_middle_last_frames_visually_checked": true,
     "normal_speed_matches_pogema_default": true,
-    "grid_visible_over_opaque_unknown_mask": true,
+    "grid_visible_over_translucent_unknown_mask": true,
     "moving_square_and_stationary_occupancy_switch_checked": true,
-    "translucent_near_white_moving_pixels_checked": 330,
-    "stationary_ordinary_occupancy_pixels_checked": 1276
+    "solid_gray_moving_pixels_checked": 330,
+    "stationary_ordinary_occupancy_pixels_checked": 1276,
+    "translucent_near_white_unknown_pixels_checked": 144493
   },
   "animation": {
     "backend": "pogema.animation.AnimationMonitor",
     "pogema_version": "1.1.1",
     "view": "persistent team-shared map",
-    "map_style": "cell-aligned occupancy, opaque gray unknown mask, grid lines above mask",
-    "unknown_mask_color": "#bdbdbd",
+    "map_style": "cell-aligned occupancy, translucent near-white unknown mask with a slight gray tint, grid lines above mask",
+    "unknown_mask_color": "#e0e0e0",
+    "unknown_mask_opacity": 0.55,
+    "unobserved_occupancy": "hidden independently of mask opacity; no ground-truth map beneath the mask",
     "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
     "intro": "Initial robot poses on an all-unknown map, before first sensing; not an extra rollout step.",
     "initial_recorded_observed_fraction": 0.106875,
     "moving_obstacle_visibility": "current union of all robot sensor windows",
-    "dynamic_obstacle_style": "translucent near-white square with a slight gray tint during motion; ordinary occupancy when stationary",
-    "moving_obstacle_color": "#e0e0e0",
-    "moving_obstacle_opacity": 0.55,
+    "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
+    "moving_obstacle_color": "#737373",
+    "moving_obstacle_opacity": 1,
     "motion_indicator": "position changes from state t to t+1; false at the terminal state",
     "occupancy": "last-observed occupancy is retained until the cell is sensed again",
     "gif_source": "Native Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only.",
@@ -68,8 +71,8 @@
     "policy": "549feac19e21593af072677305945d7c22bd7f66cb07927a92eb59f2f8a3cce9",
     "gate": "29b83253de0c7516b7742eb59a9d589a59b0b3e98d73d8e77404c5db387ee0b8",
     "trajectory": "24039b9c3b6dc8dd651e124e2113920ddb2e614e17d457e05ffa4a4f67d8dc54",
-    "renderer": "0d2ba904c7434bf8dc7555107631d923f8ec881f3fe4e3fe2301c20e00f7b376",
-    "gif": "d011dba5782d604c12d75d3315205224acbce959c530fcd63c94208d20bdedd1",
-    "svg": "51111ed61a789384e8b04c23d567c935104b53d95257d15035d7031e6ab90d53"
+    "renderer": "ac01caef6454a7a547b946f2f7456b68709ced784e74c900763c9f53ebafbad5",
+    "gif": "4bf52d427e4979c202703b06451967158eaa4e9f4c064f25d15eb6e8f43a6704",
+    "svg": "f3de622a9b4f4e1b01d0b2c2ddeeb7276d3d48c32fa825ba855048a08fbbcb7f"
   }
 }

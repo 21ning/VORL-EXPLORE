@@ -15,9 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vorl.grid import frontiers
 
 POGEMA_VERSION = "1.1.1"
-UNKNOWN_COLOR = "#bdbdbd"
-DYNAMIC_COLOR = "#e0e0e0"
-DYNAMIC_OPACITY = 0.55
+UNKNOWN_COLOR = "#e0e0e0"
+UNKNOWN_OPACITY = 0.55
+DYNAMIC_COLOR = "#737373"
+DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
 # Pogema 1.1.1 AnimationSettings.time_scale is 0.28 seconds per step.
 STEP_MS, INTRO_MS, FINAL_HOLD_MS = 280, 1120, 2240
@@ -161,13 +162,14 @@ def make_monitor(data, summary, dynamic_visible):
                 tile = Rectangle(x=int(col) * cfg.scale_size,
                                  y=(size - int(row) - 1) * cfg.scale_size,
                                  width=cfg.scale_size, height=cfg.scale_size,
-                                 fill=UNKNOWN_COLOR, opacity=1, data_layer="unknown-mask")
+                                 fill=UNKNOWN_COLOR, opacity=UNKNOWN_OPACITY, data_layer="unknown-mask")
                 self.set_visibility(tile, self.shared_history[:, row, col] == 255, animation_config.static)
                 fog.append(tile)
             background = Rectangle(x=0, y=0, width=size * cfg.scale_size,
                                    height=size * cfg.scale_size, fill="#ffffff")
-            # Grid lines sit ABOVE the opaque unknown mask. Thus unexplored
-            # regions remain gridded, without exposing the hidden obstacle layout.
+            # Grid lines sit ABOVE the translucent, lightly tinted unknown mask.
+            # Unknown occupancy is hidden independently above, so lowering the
+            # mask opacity never exposes the ground-truth obstacle layout.
             extent, line_width = size * cfg.scale_size, 4
             grid = []
             for line in range(size + 1):
@@ -189,7 +191,7 @@ def make_monitor(data, summary, dynamic_visible):
                     agent = Rectangle(x=col * scale, y=(summary["size"] - row - 1) * scale,
                                       width=scale, height=scale, rx=0, fill=DYNAMIC_COLOR,
                                       opacity=DYNAMIC_OPACITY, stroke=GRID_COLOR,
-                                      stroke_width=2, data_layer="moving-obstacle")
+                                      stroke_width=4, data_layer="moving-obstacle")
                     agents[index] = agent
                 self.set_visibility(agent, self.entity_visible[:, index], True)
             return agents
@@ -300,8 +302,10 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
     report = {"backend": "pogema.animation.AnimationMonitor", "pogema_version": version("pogema"),
               "playback": "recorded VORL states; no Pogema simulation or policy rerun",
               "view": "persistent team-shared map; moving entities visible only in current team sensing",
-              "map_style": "cell-aligned occupancy, opaque gray unknown mask, grid lines above mask",
-              "dynamic_obstacle_style": "translucent near-white square with a slight gray tint during motion; ordinary occupancy when stationary",
+              "map_style": "cell-aligned occupancy, translucent near-white unknown mask with a slight gray tint, grid lines above mask",
+              "unknown_mask_color": UNKNOWN_COLOR, "unknown_mask_opacity": UNKNOWN_OPACITY,
+              "unobserved_occupancy": "hidden independently of mask opacity; no ground-truth map beneath the mask",
+              "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
               "moving_obstacle_color": DYNAMIC_COLOR, "moving_obstacle_opacity": DYNAMIC_OPACITY,
               "motion_indicator": "position changes from state t to t+1; false at the terminal state",
               "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",

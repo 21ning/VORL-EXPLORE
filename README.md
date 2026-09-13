@@ -16,13 +16,14 @@ A selected successful rollout: **40×40 grid, 4 robots, 24 moving obstacles,
 seed 1003**. Exploration completes at step **376**, with no remaining frontiers
 and 100% observed cells. Rendered with **Pogema 1.1.1 AnimationMonitor**, adapted
 to the team's shared map: an all-unknown pre-observation intro, then the recorded
-observations merged from every robot. Unknown cells have an opaque gray mask,
-with grid lines visible throughout. Filled cells are remembered occupancy;
+observations merged from every robot. Unknown cells have a translucent near-white
+mask with a slight gray tint; unobserved obstacles remain hidden independently
+of the mask opacity. Grid lines stay visible. Filled cells are remembered occupancy;
 colored circles/rings are robots/assigned frontiers.
-Moving obstacles appear as translucent, near-white squares with a slight gray
-tint and return to ordinary obstacle cells when stationary. The motion highlight
-uses recorded displacement between consecutive states and is limited to current
-team sensing. The map retains last-observed occupancy until sensed again.
+Moving obstacles appear as gray squares during motion and return to ordinary
+obstacle cells when stationary. The motion highlight uses recorded displacement
+between consecutive states and is limited to current team sensing. The map
+retains last-observed occupancy until sensed again.
 
 Normal Pogema playback: **0.28 seconds per step**, with every step retained.
 The full GIF lasts about 1 minute 49 seconds, including the intro and final hold.
