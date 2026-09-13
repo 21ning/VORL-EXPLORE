@@ -14,17 +14,27 @@ optional self-supervised gate updates.
 
 A selected successful rollout: **40×40 grid, 4 robots, 8 moving obstacles,
 seed 1003**. Exploration completes at step **281**, with no remaining frontiers
-and 100% observed cells. This is an illustrative example, not a success-rate
-benchmark. [Run metadata](media/successful-exploration.json).
+and 100% observed cells. Rendered with **Pogema 1.1.1 AnimationMonitor**, adapted
+to the team's shared map: an all-unknown pre-observation intro, then the recorded
+observations merged from every robot. Gray tiles are unknown; rounded blocks
+are remembered occupancy; colored circles/rings are robots/assigned frontiers.
+Dark moving circles appear only within current team sensing. The map retains
+last-observed occupancy until sensed again.
+
+[Native animated SVG](media/successful-exploration.svg) ·
+[Run metadata](media/successful-exploration.json).
+This selected example is not a success-rate benchmark.
 
 <details>
-<summary>Reproduce this GIF after installation</summary>
+<summary>Reproduce this animation after installation</summary>
 
 ```bash
 python scripts/run_vorl.py --seed 1003 --horizon 640 --threads 1 --output runs/success-demo
 python scripts/verify_rollout.py --run runs/success-demo
-python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --require-success
+.venv-animation/bin/python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --require-success
 ```
+
+Set up the separate animation environment below before the last command.
 
 </details>
 
@@ -82,9 +92,6 @@ incomplete.
 # Check a recorded frozen-gate run.
 python scripts/verify_rollout.py --run runs/demo
 
-# Render its trajectory (optional).
-python scripts/render_rollout.py --run runs/demo --output runs/demo/render
-
 # Fit a new warm-start gate; this does not train the EPOM policy.
 python scripts/warmstart_gate.py --output runs/warmstart --workers 2 --threads 2
 
@@ -95,6 +102,28 @@ python -m pytest
 To use a newly fitted gate, pass `--gate runs/warmstart/fidelity-gate.json`.
 Keep fitting and run configurations identical, and use evaluation seeds outside
 the gate's training seeds. See [configuration and implementation notes](docs/implementation.md).
+
+### Pogema animation (optional)
+
+Use a separate Python 3.10 environment because Pogema 1.1.1 and the inference
+runtime require different NumPy versions. On Debian/Ubuntu, CairoSVG also needs
+`libcairo2` (`sudo apt-get install libcairo2` if absent).
+
+```bash
+python3.10 -m venv .venv-animation
+.venv-animation/bin/python -m pip install -r requirements-animation.txt
+.venv-animation/bin/python scripts/render_rollout.py --run runs/demo --output runs/demo/render
+```
+
+Outputs: native `vorl-explore.svg`, a GIF of native Pogema frames, and
+`render-check.json`. `--svg-only` works with an existing Pogema 1.1.1 installation
+without CairoSVG. `--require-success` rejects incomplete runs. The renderer
+checks trajectory/config hashes and replays shared sensing before drawing.
+It replays the recorded VORL simulator states; it does not replace the simulator
+with Pogema physics. No policy weights or PyTorch are needed for animation.
+
+Renderer tests: install `pytest==8.4.2` in the animation environment and run
+`.venv-animation/bin/python -m pytest tests/test_render.py`.
 
 ## Project structure
 

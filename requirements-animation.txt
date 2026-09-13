@@ -1,0 +1,8 @@
+# Separate Python 3.10 environment: Pogema 1.1.1 requires NumPy <= 1.23.1.
+# Do not install into the inference environment (NumPy 1.23.5).
+pogema==1.1.1
+numpy==1.23.1
+gym==0.25.0
+pydantic==1.9.1
+CairoSVG==2.7.1
+Pillow==12.3.0

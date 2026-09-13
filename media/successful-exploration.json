@@ -4,6 +4,7 @@
   "scenario": {
     "size": 40,
     "robots": 4,
+    "sensing_radius": 3,
     "dynamic_obstacles": 8,
     "static_obstacle_probability": 0.3,
     "obstacle_speed_ratio": 0.5,
@@ -22,9 +23,32 @@
   "verification": {
     "trajectory_and_gate_replay_passed": true,
     "coupled_assignment_rounds_checked": 217,
-    "decoded_gif_frames": 142,
-    "render_stride": 2,
-    "first_middle_last_frames_visually_checked": true
+    "decoded_gif_frames": 283,
+    "render_stride": 1,
+    "native_history_matches_recording": true,
+    "shared_map_replay_matches_recording": true,
+    "intro_first_middle_last_frames_visually_checked": true
+  },
+  "animation": {
+    "backend": "pogema.animation.AnimationMonitor",
+    "pogema_version": "1.1.1",
+    "view": "persistent team-shared map",
+    "intro": "Initial robot poses on an all-unknown map, before first sensing; not an extra rollout step.",
+    "initial_recorded_observed_fraction": 0.1,
+    "moving_obstacle_visibility": "current union of all robot sensor windows",
+    "occupancy": "last-observed occupancy is retained until the cell is sensed again",
+    "gif_source": "Native Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only.",
+    "size": [720, 720],
+    "duration_ms": 25840,
+    "intro_ms": 960,
+    "step_ms": 80,
+    "final_hold_ms": 2400,
+    "native_svg_timeline_states": 323,
+    "recorded_states": 282,
+    "recorded_state_offset": 12,
+    "cairosvg_version": "2.7.1",
+    "pillow_version": "12.3.0",
+    "scope": "Visualization adapter for recorded VORL states, not a replacement with Pogema simulation physics."
   },
   "sha256": {
     "method_source": "5f9fa3d8f9129fe5fe8d8e3a39d5a3a100479e2fd83774dc650fb8fd8f9d7a2f",
@@ -32,7 +56,8 @@
     "policy": "549feac19e21593af072677305945d7c22bd7f66cb07927a92eb59f2f8a3cce9",
     "gate": "29b83253de0c7516b7742eb59a9d589a59b0b3e98d73d8e77404c5db387ee0b8",
     "trajectory": "0553bba596ec920685c0852f6161491327c7369ddea18eb83a66ce56d564dc1c",
-    "renderer": "9a77bd45657a3a5648eb0adb4047145ec6d93e65f771c2359e4859966dc61a5d",
-    "gif": "0b10691cb3867b391e94980815d9d7f3362f2dcdf1e30c040a260f522444b800"
+    "renderer": "b43be6591a8d2ce0868a1c0f28213b57b42d4fa0c82ef51a27c95bd398f2a3bb",
+    "gif": "5e015dc367488ada1a73bd4459288fd4105f2f2b12d9514209db7f7089670361",
+    "svg": "16eada35de99ad129ce0728e56913022a3178bf038dac9f44d2599fbc1ff5bf7"
   }
 }

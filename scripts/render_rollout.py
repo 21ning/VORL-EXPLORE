@@ -1,97 +1,224 @@
-"""Render an actual method-evaluation trajectory, never a synthetic replacement."""
+"""Replay recorded shared-map exploration with Pogema 1.1.1 AnimationMonitor."""
 import argparse
+from copy import copy
 import hashlib
+from importlib.metadata import version
+from io import BytesIO
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vorl.grid import frontiers
 
-COLORS = ["#249bea", "#e68a24", "#ad62d8", "#18a787", "#e160a1", "#6b79dd", "#aa9633", "#4aabaa",
-          "#ef6b48", "#727ed0", "#aa7394", "#75a12b", "#bc6734", "#258a6d", "#2d73a8", "#9f5daa"]
+POGEMA_VERSION = "1.1.1"
+UNKNOWN_COLOR = "#cbd5e1"
+DYNAMIC_COLOR = "#424b57"
+STEP_MS, INTRO_MS, FINAL_HOLD_MS = 80, 960, 2400
 
 
-def render_frame(data, summary, index):
-    size, robots = summary["size"], summary["robots"]
-    cell = 12 if size == 40 else 8
-    pad, gap, top, bottom = 20, 28, 100, 112
-    panel = size * cell
-    width, height = 2 * panel + 2 * pad + gap, top + panel + bottom
-    image = Image.new("RGB", (width, height), "#101827")
-    draw = ImageDraw.Draw(image)
-    title = ImageFont.load_default(size=22)
-    font = ImageFont.load_default(size=14)
-    small = ImageFont.load_default(size=12)
-    draw.text((pad, 12), "VORL-EXPLORE", fill="white", font=title)
-    draw.text((pad, 42), "Fidelity-coupled frontier allocation and hybrid motion control", fill="#b4c4d7", font=font)
-    gate_text = "online adaptation" if summary["online_adaptation"] else "frozen gate"
-    draw.text((pad, 65), f"{size} x {size}   Robots {robots}   Dynamic obstacles {summary['dynamic_obstacles']}   Step {index:03d}/{len(data['known'])-1}   {gate_text}", fill="#d0deed", font=font)
-    draw.text((pad, top - 18), "WORLD STATE (renderer only)", fill="#95aac1", font=small)
-    draw.text((pad + panel + gap, top - 18), "SHARED OBSERVATION (controller input)", fill="#95aac1", font=small)
-    field = min(index, len(data["goals"]) - 1)
-    goals = data["goals"][field] if field >= 0 else np.full((robots, 2), -1)
-    for side in (0, 1):
-        left = pad + side * (panel + gap)
-        known = data["static_map"] if side == 0 else data["known"][index]
-        for r in range(size):
-            for c in range(size):
-                value = known[r, c]
-                color = "#8994a4" if value == 255 else ("#344252" if value else "#edf2f7")
-                draw.rectangle((left + c * cell, top + r * cell, left + (c + 1) * cell - 1, top + (r + 1) * cell - 1), fill=color)
-        if side == 0:
-            for r, c in data["dynamic"][index]:
-                x, y = left + c * cell, top + r * cell
-                draw.rectangle((x + 1, y + 1, x + cell - 2, y + cell - 2), fill="#e45151")
-        else:
-            for r, c in frontiers(data["known"][index]):
-                x, y = left + c * cell + cell // 2, top + r * cell + cell // 2
-                draw.ellipse((x - 1, y - 1, x + 1, y + 1), fill="#21a36b")
-        for robot in range(robots):
-            color = COLORS[robot % len(COLORS)]
-            trail = data["positions"][max(0, index - 20):index + 1, robot]
-            points = [(left + c * cell + cell // 2, top + r * cell + cell // 2) for r, c in trail]
-            if len(points) > 1:
-                draw.line(points, fill=color, width=2)
-            gr, gc = goals[robot]
-            if gr >= 0:
-                x, y = left + gc * cell + cell // 2, top + gr * cell + cell // 2
-                draw.line((x - 3, y - 3, x + 3, y + 3), fill=color, width=1)
-                draw.line((x - 3, y + 3, x + 3, y - 3), fill=color, width=1)
-            r, c = data["positions"][index, robot]
-            x, y = left + c * cell + cell // 2, top + r * cell + cell // 2
-            radius = max(3, cell // 2 - 1)
-            draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color, outline="white", width=1)
-    base = top + panel + 12
-    coverage = np.mean(data["known"][index] != 255)
-    draw.text((pad, base), f"Observed cells {coverage:.1%}   Red: moving obstacles   Gray: unknown   Green dots: frontiers   x: assigned goal", fill="#c7d4e4", font=small)
-    columns = 8 if robots > 8 else 4
-    column_width = (width - 2 * pad) // columns
-    mode_names = ["A*", "RL", "REC"]
-    for robot in range(robots):
-        x, y = pad + (robot % columns) * column_width, base + 24 + (robot // columns) * 21
-        draw.rectangle((x, y + 3, x + 9, y + 12), fill=COLORS[robot % len(COLORS)])
-        if field >= 0:
-            p = data["fidelity"][field, robot]
-            mode = mode_names[data["modes"][field, robot]]
-            text = f"R{robot + 1}: {p:.2f} {mode}"
-        else:
-            text = f"R{robot + 1}"
-        draw.text((x + 14, y), text, fill="#dce6f3", font=small)
-    if index == len(data["known"]) - 1:
-        terminal = "NO FRONTIERS REMAIN" if summary["success_no_frontiers"] else "HORIZON REACHED - FRONTIERS REMAIN"
-        draw.text((pad, height - 40), terminal, fill="#f4c66b", font=small)
-    draw.text((pad, height - 21), "Recorded grid trajectory | Upstream EPOM policy | Implementation details: README", fill="#9cafc4", font=small)
-    return image
+def validate_recording(data, summary, radius):
+    """Validate geometry and replay team sensing, without importing the policy."""
+    size, robots, moving = summary["size"], summary["robots"], summary["dynamic_obstacles"]
+    states = len(data["known"])
+    expected = {"static_map": (size, size), "known": (states, size, size),
+                "positions": (states, robots, 2), "dynamic": (states, moving, 2),
+                "goals": (states - 1, robots, 2)}
+    if states < 1 or robots < 1 or moving < 0 or not isinstance(radius, int) or radius < 0:
+        raise ValueError("Invalid playback dimensions or sensing radius")
+    for key, shape in expected.items():
+        if data[key].shape != shape or not np.issubdtype(data[key].dtype, np.integer):
+            raise ValueError(f"Invalid {key} shape or dtype")
+    if not np.isin(data["static_map"], [0, 1]).all():
+        raise ValueError("Invalid static map")
+    joint = np.concatenate([data["positions"], data["dynamic"]], axis=1)
+    if np.any(joint < 0) or np.any(joint >= size):
+        raise ValueError("Recorded position is outside the map")
+    if np.any(data["static_map"][joint[..., 0], joint[..., 1]]):
+        raise ValueError("Recorded position intersects a static obstacle")
+    if any(len({tuple(p) for p in state}) != robots + moving for state in joint):
+        raise ValueError("Recorded entities overlap")
+    if np.any(np.abs(np.diff(joint, axis=0)).sum(axis=-1) > 1):
+        raise ValueError("Recorded entity moves more than one grid cell")
+    goals = data["goals"]
+    valid = np.all((goals >= 0) & (goals < size), axis=-1)
+    if not np.all(valid | np.all(goals == -1, axis=-1)):
+        raise ValueError("Invalid recorded goal")
+    # Match GridWorld.observe: a persistent union of square sensor windows,
+    # including last-observed dynamic occupancy outside the current field of view.
+    shared = np.full((size, size), 255, dtype=np.uint8)
+    dynamic_visible = np.zeros((states, moving), dtype=bool)
+    for index, positions in enumerate(data["positions"]):
+        truth = data["static_map"].copy()
+        moving_positions = data["dynamic"][index]
+        truth[moving_positions[:, 0], moving_positions[:, 1]] = 1
+        observed = np.zeros((size, size), dtype=bool)
+        for row, col in positions:
+            observed[max(0, row - radius):min(size, row + radius + 1),
+                     max(0, col - radius):min(size, col + radius + 1)] = True
+        shared[observed] = truth[observed]
+        if not np.array_equal(shared, data["known"][index]):
+            raise ValueError(f"Shared map differs from team sensing at state {index}")
+        dynamic_visible[index] = observed[moving_positions[:, 0], moving_positions[:, 1]]
+    return dynamic_visible
 
 
-def render(run, output, stride=2, *, require_success=False):
+def make_monitor(data, summary, dynamic_visible):
+    """Adapt recorded states, not simulation dynamics, to the installed Pogema."""
+    try:
+        import gym
+        from pogema import GridConfig
+        from pogema.animation import AnimationConfig, AnimationMonitor, Rectangle
+    except ImportError as error:
+        raise RuntimeError("Use the separate environment in requirements-animation.txt") from error
+    if version("pogema") != POGEMA_VERSION:
+        raise RuntimeError(f"This playback adapter requires pogema=={POGEMA_VERSION}")
+    robots = summary["robots"]
+    joint = np.concatenate([data["positions"], data["dynamic"]], axis=1)
+    goals = np.full_like(joint, -1)
+    # A decision at state t governs transition t -> t+1. There is no next
+    # assignment at the terminal state, and moving obstacles have no goal rings.
+    goals[:-1, :robots] = data["goals"]
+    goal_visible = np.all(goals >= 0, axis=-1)
+    drawable_goals = np.where(goal_visible[..., None], goals, joint)
+    entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), dynamic_visible], axis=1)
+
+    class RecordedTrajectory(gym.Env):
+        """Read-only playback; step never runs a policy or Pogema physics."""
+
+        def __init__(self):
+            self.grid_config = GridConfig(size=summary["size"], num_agents=joint.shape[1],
+                                          density=0, on_target="restart")
+            self.grid = SimpleNamespace(obstacles=data["static_map"].copy())
+            self.action_space = gym.spaces.Discrete(1)
+            self.observation_space = gym.spaces.Discrete(1)
+            self.seek(0)
+
+        def seek(self, index):
+            self.index = index
+            self.grid.positions_xy = joint[index].tolist()
+            self.grid.finishes_xy = drawable_goals[index].tolist()
+
+        def reset(self, **kwargs):
+            self.seek(0)
+            return 0
+
+        def step(self, action):
+            if action is not None or self.index + 1 >= len(joint):
+                raise ValueError("Playback accepts only the next recorded state")
+            self.seek(self.index + 1)
+            count = joint.shape[1]
+            return 0, [0.0] * count, [False] * count, [{} for _ in range(count)]
+
+    class SharedMapMonitor(AnimationMonitor):
+        """Native Pogema shapes/motion with a team-shared observation layer."""
+
+        def set_visibility(self, shape, values, static):
+            shape.attributes["visibility"] = "visible" if values[0] else "hidden"
+            shape.animations = [a for a in shape.animations if a.attributes["attributeName"] != "visibility"]
+            if not static:
+                tokens = ["visible" if value else "hidden" for value in values]
+                animation = self.compressed_anim("visibility", tokens, self.svg_settings.time_scale)
+                animation.attributes["calcMode"] = "discrete"
+                shape.add_animation(animation)
+
+        def create_obstacles(self, grid_holder, animation_config):
+            cfg = self.svg_settings
+            size = summary["size"]
+            # Never display the ground-truth obstacle map. Native rounded blocks
+            # represent exactly the recorded occupied cells, including stale ones.
+            occupied = np.any(self.shared_history == 1, axis=0).astype(np.uint8)
+            holder = grid_holder.copy(update={"obstacles": occupied})
+            blocks = super().create_obstacles(holder, animation_config)
+            cells = [(size - j - 1, i) for i in range(size) for j in range(size)
+                     if occupied[size - j - 1, i]]
+            for block, (row, col) in zip(blocks, cells):
+                self.set_visibility(block, self.shared_history[:, row, col] == 1, animation_config.static)
+            fog = []
+            for row, col in np.argwhere(np.any(self.shared_history == 255, axis=0)):
+                # Use Pogema's own SVG rectangle, coordinate system and animation
+                # compressor; the mask is an adapter for team exploration.
+                tile = Rectangle(x=int(col) * cfg.scale_size,
+                                 y=(size - int(row) - 1) * cfg.scale_size,
+                                 width=cfg.scale_size, height=cfg.scale_size, fill=UNKNOWN_COLOR)
+                self.set_visibility(tile, self.shared_history[:, row, col] == 255, animation_config.static)
+                fog.append(tile)
+            background = Rectangle(x=0, y=0, width=size * cfg.scale_size,
+                                   height=size * cfg.scale_size, fill="#ffffff")
+            return [background] + fog + blocks
+
+        def create_agents(self, grid_holder, animation_config):
+            agents = super().create_agents(grid_holder, animation_config)
+            for index, agent in enumerate(agents):
+                self.set_visibility(agent, self.entity_visible[:, index], True)
+            return agents
+
+        def animate_agents(self, agents, egocentric_idx, grid_holder):
+            super().animate_agents(agents, egocentric_idx, grid_holder)
+            for index, agent in enumerate(agents):
+                self.set_visibility(agent, self.entity_visible[:, index], False)
+
+        def create_targets(self, grid_holder, animation_config):
+            holder = grid_holder.copy(update={"targets_xy": grid_holder.targets_xy_history[0]})
+            targets = super().create_targets(holder, animation_config)[:robots]
+            for index, target in enumerate(targets):
+                self.set_visibility(target, self.goal_visible[:, index], True)
+            return targets
+
+        def animate_targets(self, targets, grid_holder, animation_config):
+            super().animate_targets(targets, grid_holder, animation_config)
+            for index, target in enumerate(targets):
+                # Assigned frontiers jump; they do not move through intervening cells.
+                for animation in target.animations:
+                    animation.attributes["calcMode"] = "discrete"
+                self.set_visibility(target, self.goal_visible[:, index], False)
+
+    monitor = SharedMapMonitor(RecordedTrajectory(), AnimationConfig(save_every_idx_episode=None))
+    palette = monitor.svg_settings.colors
+    monitor.svg_settings.colors = ([palette[i % len(palette)] for i in range(robots)] +
+                                  [DYNAMIC_COLOR] * summary["dynamic_obstacles"])
+    monitor.svg_settings.time_scale = STEP_MS / 1000
+    monitor.reset()
+    for _ in range(1, len(joint)):
+        monitor.step(None)
+    if not np.array_equal(monitor.agents_xy_history, joint):
+        raise ValueError("Pogema playback changed recorded positions")
+    if not np.array_equal(monitor.targets_xy_history, drawable_goals):
+        raise ValueError("Pogema playback changed recorded targets")
+    # A labelled pre-observation intro uses initial poses and an entirely unknown
+    # map, matching GridWorld initialization. It is NOT another rollout step.
+    intro, hold = INTRO_MS // STEP_MS, FINAL_HOLD_MS // STEP_MS - 1
+    def timeline(values, initial):
+        return np.concatenate([np.repeat(initial[None], intro, axis=0), values,
+                               np.repeat(values[-1:], hold, axis=0)])
+    monitor.agents_xy_history = timeline(joint, joint[0]).tolist()
+    monitor.targets_xy_history = timeline(drawable_goals, drawable_goals[0]).tolist()
+    monitor.dones_history = np.zeros((len(monitor.agents_xy_history), joint.shape[1]), dtype=bool).tolist()
+    monitor.shared_history = timeline(data["known"], np.full_like(data["known"][0], 255))
+    monitor.entity_visible = timeline(entity_visible, np.arange(joint.shape[1]) < robots)
+    monitor.goal_visible = timeline(goal_visible, np.zeros(joint.shape[1], dtype=bool))
+    monitor.recorded_offset = intro
+    return monitor
+
+
+def native_frame_svg(monitor, index):
+    """Select a native Pogema frame without changing the full SVG timeline."""
+    from pogema.animation import AnimationConfig
+    frame = copy(monitor)
+    for key in ["agents_xy_history", "targets_xy_history", "dones_history"]:
+        setattr(frame, key, [getattr(monitor, key)[index]])
+    for key in ["shared_history", "entity_visible", "goal_visible"]:
+        setattr(frame, key, getattr(monitor, key)[index:index + 1])
+    return frame.create_animation(AnimationConfig(static=True)).render()
+
+
+def render(run, output, stride=1, *, require_success=False, svg_only=False, width=720):
     run, output = Path(run), Path(output)
-    if stride < 1:
-        raise ValueError("stride must be positive")
+    if stride < 1 or width < 160:
+        raise ValueError("stride must be positive and width must be at least 160")
     summary = json.loads((run / "summary.json").read_text())
     if summary["phase"] != "method_evaluation":
         raise ValueError("Only fitted-gate method-evaluation rollouts may use this renderer")
@@ -106,35 +233,74 @@ def render(run, output, stride=2, *, require_success=False):
         raise ValueError("Completion flag does not match the final recorded map")
     if require_success and not completed:
         raise ValueError("A successful demo requires no remaining frontiers")
+    config = json.loads((run / "config.json").read_text())
+    config_hash = hashlib.sha256(json.dumps(config, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    if config_hash != summary["config_sha256"]:
+        raise ValueError("Config hash does not match the run summary")
+    dynamic_visible = validate_recording(data, summary, config["sensing_radius"])
+    monitor = make_monitor(data, summary, dynamic_visible)
+    if not svg_only:
+        try:
+            import cairosvg
+            from PIL import Image
+        except (ImportError, OSError) as error:
+            raise RuntimeError("GIF needs CairoSVG and libcairo2; see README, or use --svg-only") from error
     output.mkdir(parents=True)
-    indices = list(range(0, len(data["known"]), stride))
-    if indices[-1] != len(data["known"]) - 1:
-        indices.append(len(data["known"]) - 1)
-    frames = [render_frame(data, summary, i) for i in indices]
-    gif = output / "vorl-explore.gif"
-    frames[0].save(gif, save_all=True, append_images=frames[1:], duration=[120] * (len(frames) - 1) + [2400], loop=0, disposal=2)
-    frames[0].save(output / "first.png")
-    frames[len(frames) // 2].save(output / "middle.png")
-    frames[-1].save(output / "last.png")
-    with Image.open(gif) as decoded:
-        actual_frames = decoded.n_frames
-        for i in range(actual_frames):
-            decoded.seek(i)
-            decoded.load()
-    report = {"trajectory_states": len(data["known"]), "rendered_state_indices": indices,
-              "decoded_gif_frames": actual_frames, "size": frames[0].size, "source_seed": summary["seed"],
-              "source_trajectory_sha256": summary["trajectory_sha256"], "profile": summary["profile"],
-              "success_no_frontiers": completed, "final_frontier_count": len(frontiers(data["known"][-1])),
-              "gif_sha256": hashlib.sha256(gif.read_bytes()).hexdigest()}
+    svg = output / "vorl-explore.svg"
+    monitor.save_animation(str(svg))
+    report = {"backend": "pogema.animation.AnimationMonitor", "pogema_version": version("pogema"),
+              "playback": "recorded VORL states; no Pogema simulation or policy rerun",
+              "view": "persistent team-shared map; moving entities visible only in current team sensing",
+              "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",
+              "trajectory_states": len(data["known"]), "native_history_matches_recording": True,
+              "shared_map_replay_matches_recording": True, "native_timeline_states": len(monitor.dones_history),
+              "recorded_state_offset": monitor.recorded_offset,
+              "initial_observed_cell_fraction": float(np.mean(data["known"][0] != 255)),
+              "source_seed": summary["seed"], "source_trajectory_sha256": summary["trajectory_sha256"],
+              "profile": summary["profile"], "success_no_frontiers": completed,
+              "final_frontier_count": len(frontiers(data["known"][-1])),
+              "svg_sha256": hashlib.sha256(svg.read_bytes()).hexdigest()}
+    if not svg_only:
+        indices = list(range(0, len(data["known"]), stride))
+        if indices[-1] != len(data["known"]) - 1:
+            indices.append(len(data["known"]) - 1)
+        display_indices = [0] + [i + monitor.recorded_offset for i in indices]
+        frames = []
+        for frame_number, index in enumerate(display_indices, 1):
+            png = cairosvg.svg2png(bytestring=native_frame_svg(monitor, index).encode(),
+                                  output_width=width, output_height=width, background_color="white")
+            with Image.open(BytesIO(png)) as source:
+                frames.append(source.convert("RGB"))
+            if frame_number % 50 == 0 or frame_number == len(display_indices):
+                print(f"Rendered Pogema frame {frame_number}/{len(display_indices)}", flush=True)
+        durations = [INTRO_MS] + [(b - a) * STEP_MS for a, b in zip(indices, indices[1:])] + [FINAL_HOLD_MS]
+        gif = output / "vorl-explore.gif"
+        frames[0].save(gif, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
+        for name, index in [("intro", 0), ("first", 1), ("middle", len(frames) // 2), ("last", len(frames) - 1)]:
+            frames[index].save(output / f"{name}.png")
+        with Image.open(gif) as decoded:
+            actual_frames, duration = decoded.n_frames, 0
+            for index in range(actual_frames):
+                decoded.seek(index)
+                decoded.load()
+                duration += decoded.info["duration"]
+        report.update(gif_source="Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only",
+                      rendered_state_indices=indices, decoded_gif_frames=actual_frames,
+                      size=frames[0].size, gif_duration_ms=duration, step_duration_ms=STEP_MS,
+                      intro_ms=INTRO_MS, final_hold_ms=FINAL_HOLD_MS, cairosvg_version=version("CairoSVG"),
+                      pillow_version=version("Pillow"), gif_sha256=hashlib.sha256(gif.read_bytes()).hexdigest())
     (output / "render-check.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps(report, indent=2))
+    print(json.dumps({key: value for key, value in report.items() if key != "rendered_state_indices"}, indent=2))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--stride", type=int, default=2)
+    parser.add_argument("--stride", type=int, default=1, help="GIF sampling stride; SVG keeps every state")
+    parser.add_argument("--width", type=int, default=720, help="GIF width in pixels")
+    parser.add_argument("--svg-only", action="store_true", help="Export native SVG without CairoSVG")
     parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
     args = parser.parse_args()
-    render(args.run, args.output, args.stride, require_success=args.require_success)
+    render(args.run, args.output, args.stride, require_success=args.require_success,
+           svg_only=args.svg_only, width=args.width)

@@ -1,5 +1,11 @@
 # Third-party acknowledgements
 
+Animation uses the installed [Pogema](https://github.com/Cognitive-AI-Systems/pogema)
+1.1.1 `AnimationMonitor` and SVG primitives. The playback adapter adds team-shared
+map visibility; it does not vendor or copy the Pogema renderer. CairoSVG rasterizes
+native frames and Pillow encodes the GIF. These dependencies retain their own
+upstream licenses.
+
 The EPOM encoder topology in `vorl/policy.py` is adapted from the supplied
 reference project and its upstream [When to Switch implementation](https://github.com/Cognitive-AI-Systems/when-to-switch).
 The original Sample Factory model core is used as an installed dependency, not

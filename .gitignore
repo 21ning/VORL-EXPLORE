@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.venv-animation/
 envs/
 cache/
 work/
@@ -29,3 +30,4 @@ media/*
 *.gif
 !media/successful-exploration.gif
 !media/successful-exploration.json
+!media/successful-exploration.svg
