@@ -12,6 +12,18 @@ def test_collision_cancellation_propagates_and_prevents_swaps():
     assert after == positions[:2]
 
 
+def test_boundary_static_and_vertex_conflicts_are_cancelled():
+    obstacles = np.zeros((5, 5), dtype=np.uint8)
+    obstacles[2, 1] = 1
+    positions = [(0, 0), (1, 1)]
+    after, events = resolve_motion(obstacles, positions, [1, 2])
+    assert after == positions
+    assert np.array_equal(events, [1, 1])
+    positions = [(1, 1), (1, 3)]
+    after, _ = resolve_motion(obstacles, positions, [4, 3])
+    assert after == positions
+
+
 def test_seeded_map_and_dynamic_obstacle_speed():
     kwargs = dict(size=12, robots=3, dynamic_obstacles=4, density=0.2, seed=17)
     first, repeated = GridWorld(**kwargs), GridWorld(**kwargs)

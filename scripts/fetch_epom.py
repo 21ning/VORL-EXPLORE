@@ -1,9 +1,4 @@
-"""Retrieve the reference project's upstream EPOM checkpoint with pinned hashes.
-
-This is not the VORL paper's independently trained checkpoint. Provenance is
-recorded explicitly so users cannot confuse upstream compatibility with exact
-paper-result reproduction. Requires only the Python standard library.
-"""
+"""Download the upstream EPOM checkpoint with SHA-256 verification."""
 import argparse
 import hashlib
 import json
@@ -16,6 +11,7 @@ URL = "https://github.com/Cognitive-AI-Systems/when-to-switch/releases/download/
 ARCHIVE_SHA256 = "cbbf44bce9dc8b59ce4f6059c565c76567d024845d0378286fc862ead6f8b727"
 CHECKPOINT_NAME = "checkpoint_000311682_1000002674.pth"
 CHECKPOINT_SHA256 = "549feac19e21593af072677305945d7c22bd7f66cb07927a92eb59f2f8a3cce9"
+CONFIG_SHA256 = "ea9c470bad09e78c8b66dc579296a4da745e117affb84c7ce732d1dbd74e0c40"
 
 
 def file_hash(path):
@@ -31,13 +27,13 @@ def fetch(output, archive=None):
     if archive is not None and not Path(archive).is_file():
         raise FileNotFoundError("--archive must name an existing input file")
     # Refuse to replace existing user data, including partial previous runs.
-    if output.exists():
+    if output.exists() or output.is_symlink():
         raise FileExistsError(f"Use a new empty output path: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="epom-fetch-", dir=output.parent) as scratch:
         archive = Path(archive).resolve() if archive else Path(scratch) / "weights.zip"
         if not archive.exists():
-            request = urllib.request.Request(URL, headers={"User-Agent": "VORL-reproduction-intake"})
+            request = urllib.request.Request(URL, headers={"User-Agent": "VORL-EXPLORE"})
             with urllib.request.urlopen(request, timeout=60) as response, archive.open("xb") as destination:
                 for block in iter(lambda: response.read(1024 * 1024), b""):
                     destination.write(block)
@@ -54,6 +50,8 @@ def fetch(output, archive=None):
                 (extracted / local_name).write_bytes(package.read(name))
         if file_hash(extracted / CHECKPOINT_NAME) != CHECKPOINT_SHA256:
             raise ValueError("Policy checkpoint hash mismatch")
+        if file_hash(extracted / "cfg.json") != CONFIG_SHA256:
+            raise ValueError("Policy configuration hash mismatch")
         provenance = {
             "source_url": URL, "archive_sha256": ARCHIVE_SHA256,
             "checkpoint_sha256": CHECKPOINT_SHA256,
@@ -71,4 +69,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--archive", type=Path, help="Use an already downloaded, hash-checked release archive")
     args = parser.parse_args()
-    print(json.dumps(fetch(args.output, args.archive), indent=2))
+    try:
+        result = fetch(args.output, args.archive)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+        parser.error(str(error))
+    print(json.dumps(result, indent=2))

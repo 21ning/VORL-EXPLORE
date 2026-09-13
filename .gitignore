@@ -18,3 +18,12 @@ models/
 *.ckpt
 .env
 .env.*
+*.egg-info/
+build/
+dist/
+.ruff_cache/
+# Generated data belongs in local run directories, not in the code release.
+examples/
+media/
+*.npz
+*.gif

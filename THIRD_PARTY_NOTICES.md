@@ -30,5 +30,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This notice does not assign a new project-wide license to the user's previously
-unlicensed material or imply that the upstream authors endorse this reconstruction.
+This notice applies to the attributed third-party material. No project-wide
+license is assigned to the remaining code by this notice.

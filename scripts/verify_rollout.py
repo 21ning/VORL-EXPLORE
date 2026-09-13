@@ -12,10 +12,11 @@ from vorl.assignment import AssignmentParameters, coupled_scores, repulsion_scor
 from vorl.fidelity import HysteresisGate, sigmoid
 from vorl.grid import MOVES, DistanceOracle, astar_path
 from vorl.observation import feasible_actions, window
-from vorl.runner import canonical_hash, source_hash
+from _common import DEFAULT_GATE
 
 
 def verify(run, gate_path):
+    from vorl.runner import canonical_hash, source_hash
     run = Path(run)
     summary = json.loads((run / "summary.json").read_text())
     config = json.loads((run / "config.json").read_text())
@@ -110,6 +111,6 @@ def verify(run, gate_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", required=True, type=Path)
-    parser.add_argument("--gate", required=True, type=Path)
+    parser.add_argument("--gate", default=DEFAULT_GATE, type=Path, help="Fitted gate used for this run")
     args = parser.parse_args()
     verify(args.run, args.gate)

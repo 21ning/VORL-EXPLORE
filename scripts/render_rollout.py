@@ -25,8 +25,8 @@ def render_frame(data, summary, index):
     title = ImageFont.load_default(size=22)
     font = ImageFont.load_default(size=14)
     small = ImageFont.load_default(size=12)
-    draw.text((pad, 12), "VORL-EXPLORE | METHOD RECONSTRUCTION", fill="white", font=title)
-    draw.text((pad, 42), "Upstream EPOM + newly fitted fidelity gate | declared reconstruction settings", fill="#b4c4d7", font=font)
+    draw.text((pad, 12), "VORL-EXPLORE", fill="white", font=title)
+    draw.text((pad, 42), "Fidelity-coupled frontier allocation and hybrid motion control", fill="#b4c4d7", font=font)
     gate_text = "online adaptation" if summary["online_adaptation"] else "frozen gate"
     draw.text((pad, 65), f"{size} x {size}   Robots {robots}   Dynamic obstacles {summary['dynamic_obstacles']}   Step {index:03d}/{len(data['known'])-1}   {gate_text}", fill="#d0deed", font=font)
     draw.text((pad, top - 18), "WORLD STATE (renderer only)", fill="#95aac1", font=small)
@@ -83,7 +83,7 @@ def render_frame(data, summary, index):
     if index == len(data["known"]) - 1:
         terminal = "NO FRONTIERS REMAIN" if summary["success_no_frontiers"] else "HORIZON REACHED - FRONTIERS REMAIN"
         draw.text((pad, height - 40), terminal, fill="#f4c66b", font=small)
-    draw.text((pad, height - 21), "Recorded trajectory; not the original paper checkpoint or a claim of reproduced benchmark numbers.", fill="#9cafc4", font=small)
+    draw.text((pad, height - 21), "Recorded grid trajectory | Upstream EPOM policy | Implementation details: README", fill="#9cafc4", font=small)
     return image
 
 

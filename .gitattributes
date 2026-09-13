@@ -1,9 +1,12 @@
+* text=auto eol=lf
 *.py text eol=lf
 *.json text eol=lf
 *.jsonl text eol=lf
 *.md text eol=lf
 *.lock text eol=lf
 *.txt text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
 *.gif binary
 *.png binary
 *.npz binary

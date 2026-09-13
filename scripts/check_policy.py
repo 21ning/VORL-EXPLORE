@@ -7,7 +7,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from vorl.policy import EpomPolicy
+from _common import require_new_output
 
 
 def main():
@@ -16,6 +16,12 @@ def main():
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    try:
+        require_new_output(args.output)
+    except ValueError as error:
+        parser.error(str(error))
+    from vorl.policy import EpomPolicy
+
     policy = EpomPolicy(args.config, args.checkpoint, seed=17)
     width = 2 * policy.radius + 1
     observations = np.zeros((4, 3, width, width), dtype=np.float32)

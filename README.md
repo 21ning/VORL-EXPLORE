@@ -1,88 +1,98 @@
 # VORL-EXPLORE
-Official repository for "VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments" (IROS 2026). A closed-loop multi-robot exploration framework featuring execution fidelity, self-supervised adaptation, and hybrid planning.
 
+**A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments**
 
-## Executable method reconstruction
+VORL-EXPLORE couples frontier assignment and motion execution through a shared
+execution-fidelity score. The score adjusts a Voronoi-based frontier objective
+and controls a hysteresis switch between A* planning and an EPOM reactive policy.
+The implementation includes dynamic grid environments, recovery actions and
+optional self-supervised gate updates.
 
-This release runs the coupled method with a genuine EPOM policy, a newly fitted
-eight-feature fidelity gate, hysteresis, recovery and dynamic obstacles. It is a
-**method-level reconstruction**, not the unpublished original implementation or
-a reproduction of the paper's benchmark numbers. The EPOM checkpoint comes from
-the supplied reference project's upstream release; the gate is trained here.
-See [scope and declared differences](docs/RECONSTRUCTION_SCOPE.md).
+## Installation
 
-The implementation and its environment are independent of CARE. No CARE source,
-environment, communication model, or result files are required.
-
-## Run on Linux / Python 3.10
-
-Create a new environment inside a dedicated VORL checkout:
+Linux and Python 3.10 are the supported runtime. CPU inference is supported;
+CUDA is not required.
 
 ```bash
-git clone https://github.com/21ning/VORL-EXPLORE.git
+git clone --depth 1 https://github.com/21ning/VORL-EXPLORE.git
 cd VORL-EXPLORE
 python3.10 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-cpu.lock
+python -m pip install --no-deps --no-build-isolation -e .
 python scripts/fetch_epom.py --output models/epom
-python -m pytest -q
 ```
 
-The downloader verifies pinned hashes. The 116 MB EPOM policy is intentionally
-not stored in Git; an existing destination is never overwritten. GPU is not
-required. Use a fresh output directory for every run.
+The downloader verifies the upstream release and checkpoint hashes. Model
+weights are downloaded separately and are not stored in this repository.
+
+## Quick start
 
 ```bash
-python scripts/run_vorl.py --policy-dir models/epom --gate checkpoints/fidelity-gate.json --size 40 --seed 1000 --dynamic-obstacles 8 --output runs/demo40
-python scripts/run_vorl.py --policy-dir models/epom --gate checkpoints/fidelity-gate.json --size 80 --seed 1001 --dynamic-obstacles 32 --output runs/demo80
-python scripts/verify_rollout.py --run runs/demo40 --gate checkpoints/fidelity-gate.json
-python scripts/verify_rollout.py --run runs/demo80 --gate checkpoints/fidelity-gate.json
-python scripts/render_rollout.py --run runs/demo40 --output runs/demo40/gif
-python scripts/render_rollout.py --run runs/demo80 --output runs/demo80/gif
+python scripts/run_vorl.py --output runs/demo
 ```
 
-Main evaluation freezes the gate. `--adapt` enables a separate adaptation run;
-it is not used for the examples below. Runtime guards reject an unfitted gate,
-configuration mismatch or reuse of a training seed for evaluation.
-
-## Verified examples
-
-These are two executability checks, not a statistical benchmark. Both execute
-A*, real EPOM and recovery, with recorded transitions and frozen-gate checks.
-Both reach their time limits with residual frontiers; **neither is reported as
-complete exploration**. Full data and checks are under `examples/`.
-
-| Scenario | Steps | Observed cells | Termination |
-| --- | ---: | ---: | --- |
-| 40×40, 4 robots, 8 moving obstacles, seed 1000 | 320 | 99.6875% | Horizon; residual frontiers |
-| 80×80, 16 robots, 32 moving obstacles, seed 1001 | 480 | 99.8438% | Horizon; residual frontiers |
-
-![40x40 recorded method reconstruction](media/vorl-40x40.gif)
-
-![80x80 recorded method reconstruction](media/vorl-80x80.gif)
-
-The left panel is world truth available only to the renderer; the right panel is
-the shared observation supplied to the controller. Red cells are moving obstacles,
-green dots are frontiers, crosses are assigned goals, and legend values are
-actual gate scores and execution modes.
-
-## Refit the warm-start gate
+This runs a 40×40 dynamic grid with 4 robots, 8 moving obstacles and a frozen
+fidelity gate. For a larger scene:
 
 ```bash
-python scripts/warmstart_gate.py --policy-dir models/epom --output runs/warmstart --workers 4 --threads 8
+python scripts/run_vorl.py --size 80 --robots 16 --dynamic-obstacles 32 --seed 1001 --output runs/demo80
 ```
 
-This collects seeds 0–3 on 64×64 maps with 64 robots, fits regularized logistic
-regression from delayed execution outcomes, and saves `fidelity-gate.json`.
-The supplied checkpoint used 46,860 clear-margin samples. All reconstruction
-settings are fixed in `configs/reconstruction.json`. This refits the small gate,
-**not** the large upstream EPOM policy.
+Useful options:
 
-These examples include the [recovery and switch-counting correction](docs/RECOVERY_FIX.md).
-The numerical implementation is in `vorl/`; command-line entry points are in
-`scripts/`. The historical reference-only diagnostic is separate and is never
-labeled as the main method. See the [run report](docs/REPRODUCTION_REPORT.md),
-[source audit](docs/SOURCE_AUDIT.md), [model provenance](docs/UPSTREAM_ARTIFACTS.md)
-and [third-party notices](THIRD_PARTY_NOTICES.md). The
-[completion evidence](docs/COMPLETION_AUDIT.md) maps each requested deliverable
-to implementation and runtime checks.
+| Option | Default | Description |
+| --- | --- | --- |
+| `--size` | `40` | Grid size: `40` or `80` |
+| `--robots` | `4` / `16` | Team size, selected by grid size |
+| `--dynamic-obstacles` | `8` | Number of moving obstacles |
+| `--seed` | `1000` | Environment and policy random seed |
+| `--horizon` | `320` / `480` | Maximum decision steps |
+| `--threads` | `4` | CPU threads for policy inference |
+| `--adapt` | off | Enable online fidelity-gate updates |
+
+Use `--help` for model and configuration paths. Each run requires a new output
+directory and saves its configuration, summary, trajectory and allocation log.
+Completion means no frontiers remain; a horizon-limited run is recorded as
+incomplete.
+
+## Tools
+
+```bash
+# Check a recorded frozen-gate run.
+python scripts/verify_rollout.py --run runs/demo
+
+# Render its trajectory (optional).
+python scripts/render_rollout.py --run runs/demo --output runs/demo/render
+
+# Fit a new warm-start gate; this does not train the EPOM policy.
+python scripts/warmstart_gate.py --output runs/warmstart --workers 2 --threads 2
+
+# Run unit tests; no downloaded policy is required.
+python -m pytest
+```
+
+To use a newly fitted gate, pass `--gate runs/warmstart/fidelity-gate.json`.
+Keep fitting and run configurations identical, and use evaluation seeds outside
+the gate's training seeds. See [configuration and implementation notes](docs/implementation.md).
+
+## Project structure
+
+```text
+vorl/          Frontier allocation, fidelity, controller, policy and environment
+scripts/       Run, download, gate fitting, trajectory validation and rendering
+configs/       Default method configuration
+checkpoints/   Lightweight warm-start gate
+tests/         Unit and command-line tests
+```
+
+## Implementation scope
+
+This is a runnable method-level implementation using an upstream EPOM checkpoint
+and a separately fitted fidelity gate. It does not reproduce the paper's
+from-scratch policy training or benchmark tables. This code-only release does
+not include experiment results, ablation suites or Gazebo integration.
+
+EPOM is based on [When to Switch](https://github.com/Cognitive-AI-Systems/when-to-switch)
+and uses Sample Factory. See [third-party notices](THIRD_PARTY_NOTICES.md) for
+attribution and license terms.

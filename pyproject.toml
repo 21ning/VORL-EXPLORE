@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools==75.8.0", "wheel==0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vorl-explore"
+version = "0.1.0"
+description = "Fidelity-coupled multi-robot exploration with hybrid planning and reactive control"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "numpy==1.23.5",
+    "scipy==1.10.1",
+    "torch==2.6.0",
+    "gym==0.25.0",
+    "sample-factory==1.121.3",
+    "pillow==11.3.0",
+    "threadpoolctl==3.6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.2"]
+
+[project.urls]
+Repository = "https://github.com/21ning/VORL-EXPLORE"
+Issues = "https://github.com/21ning/VORL-EXPLORE/issues"
+
+[tool.setuptools]
+packages = ["vorl"]
+license-files = ["THIRD_PARTY_NOTICES.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

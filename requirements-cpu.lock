@@ -1,5 +1,8 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 # Verified Linux / Python 3.10.20 runtime. No CUDA wheels.
+# Build tools for the editable checkout installation.
+setuptools==75.8.0
+wheel==0.45.1
 absl-py==2.5.0
 cloudpickle==3.1.2
 colorlog==6.9.0

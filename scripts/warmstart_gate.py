@@ -12,10 +12,14 @@ from threadpoolctl import threadpool_limits
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vorl.fidelity import FEATURE_NAMES, sigmoid
-from vorl.runner import canonical_hash, run_episode, source_hash
+from _common import (
+    DEFAULT_CONFIG, DEFAULT_POLICY, load_json, positive_int,
+    require_new_output, require_policy, seed_list, validate_config,
+)
 
 
 def collect_one(arguments):
+    from vorl.runner import run_episode
     with threadpool_limits(arguments.pop("threads")) as _:
         # Torch threads are explicitly passed separately through this private key.
         arguments["threads"] = arguments.pop("torch_threads")
@@ -53,22 +57,27 @@ def fit_gate(features, quality, config):
                             "metric_scope": "Optimization checks only; not held-out task performance"}
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("configs/reconstruction.json"))
-    parser.add_argument("--policy-dir", type=Path, required=True)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--policy-dir", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--seeds", default="0,1,2,3")
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--threads", type=int, default=8)
-    parser.add_argument("--horizon", type=int, default=512)
-    args = parser.parse_args()
-    if args.workers < 1 or args.threads < 1 or args.workers * args.threads > 32:
+    parser.add_argument("--seeds", type=seed_list, default="0,1,2,3")
+    parser.add_argument("--workers", type=positive_int, default=2)
+    parser.add_argument("--threads", type=positive_int, default=2)
+    parser.add_argument("--horizon", type=positive_int, default=512)
+    args = parser.parse_args(argv)
+    if args.workers * args.threads > 32:
         parser.error("Keep total requested compute at or below 32 CPU threads")
-    seeds = [int(s) for s in args.seeds.split(",")]
-    if len(set(seeds)) != len(seeds) or len(seeds) < 2:
-        parser.error("Use at least two distinct warm-start seeds")
-    config = json.loads(args.config.read_text(encoding="utf-8"))
+    seeds = args.seeds
+    try:
+        config = load_json(args.config)
+        validate_config(config)
+        require_new_output(args.output)
+        require_policy(args.policy_dir)
+    except ValueError as error:
+        parser.error(str(error))
+    from vorl.runner import canonical_hash, source_hash
     args.output.mkdir(parents=True, exist_ok=False)
     cold_gate = {"status": "untrained_collection_initialization", "weights": [0.0] * 8, "bias": 0.0}
     jobs = []

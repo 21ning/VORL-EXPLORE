@@ -1,4 +1,0 @@
-# Reference-planner and GIF diagnostics only. Not the RL runtime lockfile.
-numpy==1.23.5
-Pillow==11.3.0
-pytest==8.4.2
