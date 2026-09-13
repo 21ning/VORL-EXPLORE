@@ -15,9 +15,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vorl.grid import frontiers
 
 POGEMA_VERSION = "1.1.1"
-UNKNOWN_COLOR = "#cbd5e1"
+UNKNOWN_COLOR = "#bdbdbd"
 DYNAMIC_COLOR = "#424b57"
-STEP_MS, INTRO_MS, FINAL_HOLD_MS = 80, 960, 2400
+GRID_COLOR = "#8a8a8a"
+# Pogema 1.1.1 AnimationSettings.time_scale is 0.28 seconds per step.
+STEP_MS, INTRO_MS, FINAL_HOLD_MS = 280, 1120, 2240
 
 
 def validate_recording(data, summary, radius):
@@ -128,14 +130,18 @@ def make_monitor(data, summary, dynamic_visible):
         def create_obstacles(self, grid_holder, animation_config):
             cfg = self.svg_settings
             size = summary["size"]
-            # Never display the ground-truth obstacle map. Native rounded blocks
-            # represent exactly the recorded occupied cells, including stale ones.
+            # Never display the ground-truth obstacle map. Occupancy blocks fill
+            # their grid cells and preserve recorded (including stale) occupancy.
             occupied = np.any(self.shared_history == 1, axis=0).astype(np.uint8)
             holder = grid_holder.copy(update={"obstacles": occupied})
             blocks = super().create_obstacles(holder, animation_config)
             cells = [(size - j - 1, i) for i in range(size) for j in range(size)
                      if occupied[size - j - 1, i]]
             for block, (row, col) in zip(blocks, cells):
+                block.attributes.update(x=col * cfg.scale_size,
+                                        y=-(size - row) * cfg.scale_size,
+                                        width=cfg.scale_size, height=cfg.scale_size,
+                                        rx=0, data_layer="occupancy")
                 self.set_visibility(block, self.shared_history[:, row, col] == 1, animation_config.static)
             fog = []
             for row, col in np.argwhere(np.any(self.shared_history == 255, axis=0)):
@@ -143,12 +149,25 @@ def make_monitor(data, summary, dynamic_visible):
                 # compressor; the mask is an adapter for team exploration.
                 tile = Rectangle(x=int(col) * cfg.scale_size,
                                  y=(size - int(row) - 1) * cfg.scale_size,
-                                 width=cfg.scale_size, height=cfg.scale_size, fill=UNKNOWN_COLOR)
+                                 width=cfg.scale_size, height=cfg.scale_size,
+                                 fill=UNKNOWN_COLOR, opacity=1, data_layer="unknown-mask")
                 self.set_visibility(tile, self.shared_history[:, row, col] == 255, animation_config.static)
                 fog.append(tile)
             background = Rectangle(x=0, y=0, width=size * cfg.scale_size,
                                    height=size * cfg.scale_size, fill="#ffffff")
-            return [background] + fog + blocks
+            # Grid lines sit ABOVE the opaque unknown mask. Thus unexplored
+            # regions remain gridded, without exposing the hidden obstacle layout.
+            extent, line_width = size * cfg.scale_size, 4
+            grid = []
+            for line in range(size + 1):
+                offset = line * cfg.scale_size - line_width / 2
+                grid.extend([
+                    Rectangle(x=offset, y=0, width=line_width, height=extent,
+                              fill=GRID_COLOR, opacity=0.65, data_layer="grid"),
+                    Rectangle(x=0, y=offset, width=extent, height=line_width,
+                              fill=GRID_COLOR, opacity=0.65, data_layer="grid"),
+                ])
+            return [background] + blocks + fog + grid
 
         def create_agents(self, grid_holder, animation_config):
             agents = super().create_agents(grid_holder, animation_config)
@@ -251,6 +270,8 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
     report = {"backend": "pogema.animation.AnimationMonitor", "pogema_version": version("pogema"),
               "playback": "recorded VORL states; no Pogema simulation or policy rerun",
               "view": "persistent team-shared map; moving entities visible only in current team sensing",
+              "map_style": "cell-aligned occupancy, opaque gray unknown mask, grid lines above mask",
+              "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
               "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",
               "trajectory_states": len(data["known"]), "native_history_matches_recording": True,
               "shared_map_replay_matches_recording": True, "native_timeline_states": len(monitor.dones_history),

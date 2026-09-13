@@ -12,14 +12,18 @@ optional self-supervised gate updates.
 
 ![Successful VORL-EXPLORE rollout](media/successful-exploration.gif)
 
-A selected successful rollout: **40×40 grid, 4 robots, 8 moving obstacles,
-seed 1003**. Exploration completes at step **281**, with no remaining frontiers
+A selected successful rollout: **40×40 grid, 4 robots, 24 moving obstacles,
+seed 1003**. Exploration completes at step **376**, with no remaining frontiers
 and 100% observed cells. Rendered with **Pogema 1.1.1 AnimationMonitor**, adapted
 to the team's shared map: an all-unknown pre-observation intro, then the recorded
-observations merged from every robot. Gray tiles are unknown; rounded blocks
-are remembered occupancy; colored circles/rings are robots/assigned frontiers.
+observations merged from every robot. Unknown cells have an opaque gray mask,
+with grid lines visible throughout. Filled cells are remembered occupancy;
+colored circles/rings are robots/assigned frontiers.
 Dark moving circles appear only within current team sensing. The map retains
 last-observed occupancy until sensed again.
+
+Normal Pogema playback: **0.28 seconds per step**, with every step retained.
+The full GIF lasts about 1 minute 49 seconds, including the intro and final hold.
 
 [Native animated SVG](media/successful-exploration.svg) ·
 [Run metadata](media/successful-exploration.json).
@@ -29,7 +33,7 @@ This selected example is not a success-rate benchmark.
 <summary>Reproduce this animation after installation</summary>
 
 ```bash
-python scripts/run_vorl.py --seed 1003 --horizon 640 --threads 1 --output runs/success-demo
+python scripts/run_vorl.py --seed 1003 --dynamic-obstacles 24 --horizon 640 --threads 1 --output runs/success-demo
 python scripts/verify_rollout.py --run runs/success-demo
 .venv-animation/bin/python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --require-success
 ```

@@ -134,6 +134,13 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
         root = ET.fromstring(renderer.native_frame_svg(monitor, index))
         fog = [r for r in root.findall("s:rect", ns) if r.get("fill") == renderer.UNKNOWN_COLOR]
         assert sum(r.get("visibility") == "visible" for r in fog) == unknown_cells
+        assert all(r.get("opacity") == "1" for r in fog)
+        layers = list(root)
+        grid = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "grid"]
+        assert len(grid) == 2 * (summary["size"] + 1)
+        assert all(layers.index(line) > layers.index(tile) for line in grid for tile in fog)
+        occupancy = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "occupancy"]
+        assert all(r.get("width") == r.get("height") == "100" and r.get("rx") == "0" for r in occupancy)
         moving = [c for c in root.findall("s:circle", ns) if c.get("fill") == renderer.DYNAMIC_COLOR]
         assert len(moving) == 1
         assert (moving[0].get("visibility") == "visible") == visible_moving
@@ -141,6 +148,18 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
         assert len(targets) == 1  # No goal ring for the moving obstacle.
         if index in (0, offset + 2):
             assert targets[0].get("visibility") == "hidden"
+
+
+def test_playback_uses_normal_pogema_speed(tmp_path):
+    pytest.importorskip("pogema")
+    from pogema.animation import AnimationMonitor, AnimationSettings
+    _, data, summary = recording_fixture(tmp_path)
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 3))
+    assert isinstance(monitor, AnimationMonitor)
+    assert renderer.STEP_MS == round(1000 * AnimationSettings().time_scale) == 280
+    assert monitor.svg_settings.time_scale == AnimationSettings().time_scale
+    assert renderer.INTRO_MS % renderer.STEP_MS == 0
+    assert renderer.FINAL_HOLD_MS % renderer.STEP_MS == 0
 
 
 def test_svg_only_does_not_need_cairo(tmp_path, monkeypatch):
