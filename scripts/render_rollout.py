@@ -16,7 +16,7 @@ from vorl.grid import frontiers
 
 POGEMA_VERSION = "1.1.1"
 UNKNOWN_COLOR = "#bdbdbd"
-DYNAMIC_COLOR = "#424b57"
+DYNAMIC_COLOR = "#737373"
 GRID_COLOR = "#8a8a8a"
 # Pogema 1.1.1 AnimationSettings.time_scale is 0.28 seconds per step.
 STEP_MS, INTRO_MS, FINAL_HOLD_MS = 280, 1120, 2240
@@ -86,7 +86,17 @@ def make_monitor(data, summary, dynamic_visible):
     goals[:-1, :robots] = data["goals"]
     goal_visible = np.all(goals >= 0, axis=-1)
     drawable_goals = np.where(goal_visible[..., None], goals, joint)
-    entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), dynamic_visible], axis=1)
+    # State t describes the interval t -> t+1: highlight only actual displacement,
+    # not intended actions. A wait, a blocked move and the terminal hold are ordinary
+    # occupancy. This also aligns the color with Pogema's interpolated SVG motion.
+    moving = np.zeros_like(dynamic_visible)
+    moving[:-1] = np.any(np.diff(data["dynamic"], axis=0) != 0, axis=-1)
+    moving_visible = moving & dynamic_visible
+    entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), moving_visible], axis=1)
+    ordinary_occupancy = data["known"] == 1
+    for state, cells in enumerate(data["dynamic"]):
+        highlighted = cells[moving_visible[state]]
+        ordinary_occupancy[state, highlighted[:, 0], highlighted[:, 1]] = False
 
     class RecordedTrajectory(gym.Env):
         """Read-only playback; step never runs a policy or Pogema physics."""
@@ -132,7 +142,7 @@ def make_monitor(data, summary, dynamic_visible):
             size = summary["size"]
             # Never display the ground-truth obstacle map. Occupancy blocks fill
             # their grid cells and preserve recorded (including stale) occupancy.
-            occupied = np.any(self.shared_history == 1, axis=0).astype(np.uint8)
+            occupied = np.any(self.ordinary_history, axis=0).astype(np.uint8)
             holder = grid_holder.copy(update={"obstacles": occupied})
             blocks = super().create_obstacles(holder, animation_config)
             cells = [(size - j - 1, i) for i in range(size) for j in range(size)
@@ -142,7 +152,7 @@ def make_monitor(data, summary, dynamic_visible):
                                         y=-(size - row) * cfg.scale_size,
                                         width=cfg.scale_size, height=cfg.scale_size,
                                         rx=0, data_layer="occupancy")
-                self.set_visibility(block, self.shared_history[:, row, col] == 1, animation_config.static)
+                self.set_visibility(block, self.ordinary_history[:, row, col], animation_config.static)
             fog = []
             for row, col in np.argwhere(np.any(self.shared_history == 255, axis=0)):
                 # Use Pogema's own SVG rectangle, coordinate system and animation
@@ -172,12 +182,29 @@ def make_monitor(data, summary, dynamic_visible):
         def create_agents(self, grid_holder, animation_config):
             agents = super().create_agents(grid_holder, animation_config)
             for index, agent in enumerate(agents):
+                if index >= robots:
+                    scale = self.svg_settings.scale_size
+                    row, col = grid_holder.agents_xy_history[0][index]
+                    agent = Rectangle(x=col * scale, y=(summary["size"] - row - 1) * scale,
+                                      width=scale, height=scale, rx=0, fill=DYNAMIC_COLOR,
+                                      stroke=GRID_COLOR, stroke_width=4, data_layer="moving-obstacle")
+                    agents[index] = agent
                 self.set_visibility(agent, self.entity_visible[:, index], True)
             return agents
 
         def animate_agents(self, agents, egocentric_idx, grid_holder):
             super().animate_agents(agents, egocentric_idx, grid_holder)
             for index, agent in enumerate(agents):
+                if index >= robots:
+                    # Reuse Pogema's exact motion/keyTimes; convert circle centers
+                    # into rectangle top-left coordinates, without rerouting motion.
+                    for animation in agent.animations:
+                        attribute = animation.attributes["attributeName"]
+                        if attribute in ("cx", "cy"):
+                            animation.attributes["attributeName"] = {"cx": "x", "cy": "y"}[attribute]
+                            animation.attributes["values"] = ";".join(
+                                f"{float(value) - self.svg_settings.scale_size / 2:g}"
+                                for value in animation.attributes["values"].split(";"))
                 self.set_visibility(agent, self.entity_visible[:, index], False)
 
         def create_targets(self, grid_holder, animation_config):
@@ -217,6 +244,7 @@ def make_monitor(data, summary, dynamic_visible):
     monitor.targets_xy_history = timeline(drawable_goals, drawable_goals[0]).tolist()
     monitor.dones_history = np.zeros((len(monitor.agents_xy_history), joint.shape[1]), dtype=bool).tolist()
     monitor.shared_history = timeline(data["known"], np.full_like(data["known"][0], 255))
+    monitor.ordinary_history = timeline(ordinary_occupancy, np.zeros_like(ordinary_occupancy[0]))
     monitor.entity_visible = timeline(entity_visible, np.arange(joint.shape[1]) < robots)
     monitor.goal_visible = timeline(goal_visible, np.zeros(joint.shape[1], dtype=bool))
     monitor.recorded_offset = intro
@@ -229,7 +257,7 @@ def native_frame_svg(monitor, index):
     frame = copy(monitor)
     for key in ["agents_xy_history", "targets_xy_history", "dones_history"]:
         setattr(frame, key, [getattr(monitor, key)[index]])
-    for key in ["shared_history", "entity_visible", "goal_visible"]:
+    for key in ["shared_history", "ordinary_history", "entity_visible", "goal_visible"]:
         setattr(frame, key, getattr(monitor, key)[index:index + 1])
     return frame.create_animation(AnimationConfig(static=True)).render()
 
@@ -271,6 +299,8 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "playback": "recorded VORL states; no Pogema simulation or policy rerun",
               "view": "persistent team-shared map; moving entities visible only in current team sensing",
               "map_style": "cell-aligned occupancy, opaque gray unknown mask, grid lines above mask",
+              "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
+              "motion_indicator": "position changes from state t to t+1; false at the terminal state",
               "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
               "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",
               "trajectory_states": len(data["known"]), "native_history_matches_recording": True,

@@ -130,7 +130,7 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
     assert np.array_equal(monitor.shared_history[offset:offset + 3], data["known"])
     assert np.all(monitor.shared_history[:offset] == 255)
     ns = {"s": "http://www.w3.org/2000/svg"}
-    for index, unknown_cells, visible_moving in [(0, 25, False), (offset, 9, False), (offset + 2, 0, True)]:
+    for index, unknown_cells in [(0, 25), (offset, 9), (offset + 2, 0)]:
         root = ET.fromstring(renderer.native_frame_svg(monitor, index))
         fog = [r for r in root.findall("s:rect", ns) if r.get("fill") == renderer.UNKNOWN_COLOR]
         assert sum(r.get("visibility") == "visible" for r in fog) == unknown_cells
@@ -141,13 +141,89 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
         assert all(layers.index(line) > layers.index(tile) for line in grid for tile in fog)
         occupancy = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "occupancy"]
         assert all(r.get("width") == r.get("height") == "100" and r.get("rx") == "0" for r in occupancy)
-        moving = [c for c in root.findall("s:circle", ns) if c.get("fill") == renderer.DYNAMIC_COLOR]
+        moving = [c for c in root.findall("s:rect", ns) if c.get("data-layer") == "moving-obstacle"]
         assert len(moving) == 1
-        assert (moving[0].get("visibility") == "visible") == visible_moving
+        # This fixture's obstacle never moves, even when it becomes visible.
+        assert moving[0].get("visibility") == "hidden"
         targets = [c for c in root.findall("s:circle", ns) if c.get("fill") == "none"]
         assert len(targets) == 1  # No goal ring for the moving obstacle.
         if index in (0, offset + 2):
             assert targets[0].get("visibility") == "hidden"
+
+
+def motion_fixture():
+    dynamic = np.array([[[2, 1]], [[2, 1]], [[2, 2]], [[2, 2]], [[3, 2]]])
+    static = np.zeros((5, 5), dtype=np.uint8)
+    static[4, 4] = 1
+    known = np.repeat(static[None], len(dynamic), axis=0)
+    for index, (cell,) in enumerate(dynamic):
+        known[index, cell[0], cell[1]] = 1
+    data = dict(known=known, static_map=static, dynamic=dynamic,
+                positions=np.zeros((len(dynamic), 1, 2), dtype=int),
+                goals=np.full((len(dynamic) - 1, 1, 2), -1, dtype=int))
+    return data, {"size": 5, "robots": 1, "dynamic_obstacles": 1}
+
+
+def test_dynamic_square_switches_to_ordinary_occupancy_on_each_stop():
+    pytest.importorskip("pogema")
+    data, summary = motion_fixture()
+    visible = renderer.validate_recording(data, summary, 4)
+    before = data["known"].copy()
+    monitor = renderer.make_monitor(data, summary, visible)
+    offset = monitor.recorded_offset
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    for index, moving_now in enumerate([False, True, False, True, False]):
+        root = ET.fromstring(renderer.native_frame_svg(monitor, offset + index))
+        squares = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "moving-obstacle"]
+        assert len(squares) == 1
+        square = squares[0]
+        assert square.get("fill") == renderer.DYNAMIC_COLOR
+        assert square.get("width") == square.get("height") == "100"
+        assert (square.get("visibility") == "visible") == moving_now
+        assert len(root.findall("s:circle", ns)) == 2  # Robot and its hidden goal only.
+        row, col = data["dynamic"][index, 0]
+        assert float(square.get("x")) == col * 100
+        assert float(square.get("y")) == -(5 - row) * 100
+        ordinary = [r for r in root.findall("s:rect", ns)
+                    if r.get("data-layer") == "occupancy" and float(r.get("x")) == col * 100
+                    and float(r.get("y")) == -(5 - row) * 100 and r.get("visibility") == "visible"]
+        assert bool(ordinary) == (not moving_now)
+        if ordinary:
+            assert ordinary[0].get("fill") == monitor.svg_settings.obstacle_color
+    assert np.array_equal(data["known"], before)  # Styling never mutates the shared map.
+    assert not monitor.entity_visible[-1, 1]  # No motion color during the final hold.
+
+
+def test_moving_square_does_not_reveal_unobserved_obstacles():
+    pytest.importorskip("pogema")
+    data, summary = motion_fixture()
+    # Keep the obstacle outside the robot's sensing window for the whole replay.
+    data["known"][:] = 255
+    data["known"][:, :2, :2] = 0
+    visible = renderer.validate_recording(data, summary, 1)
+    monitor = renderer.make_monitor(data, summary, visible)
+    assert not monitor.entity_visible[:, 1].any()
+
+
+def test_native_rectangle_motion_uses_xy_not_circle_centers():
+    pytest.importorskip("pogema")
+    from pogema.animation import AnimationMonitor
+    data, summary = motion_fixture()
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 4))
+    root = ET.fromstring(monitor.create_animation().render())
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    square = next(r for r in root.findall("s:rect", ns) if r.get("data-layer") == "moving-obstacle")
+    animations = {a.get("attributeName"): a for a in square.findall("s:animate", ns)}
+    assert {"x", "y", "visibility"} <= animations.keys()
+    assert not {"cx", "cy"} & animations.keys()
+    for axis, coordinate in [("x", 1), ("y", 0)]:
+        values = []
+        for state in monitor.agents_xy_history:
+            value = state[1][coordinate] * 100 if axis == "x" else -(5 - state[1][coordinate]) * 100
+            values.append(str(value))
+        expected = AnimationMonitor.compressed_anim(axis, values, monitor.svg_settings.time_scale)
+        assert animations[axis].get("values") == expected.attributes["values"]
+        assert animations[axis].get("keyTimes") == expected.attributes["keyTimes"]
 
 
 def test_playback_uses_normal_pogema_speed(tmp_path):
