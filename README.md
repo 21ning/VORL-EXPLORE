@@ -8,6 +8,26 @@ and controls a hysteresis switch between A* planning and an EPOM reactive policy
 The implementation includes dynamic grid environments, recovery actions and
 optional self-supervised gate updates.
 
+## Demo
+
+![Successful VORL-EXPLORE rollout](media/successful-exploration.gif)
+
+A selected successful rollout: **40×40 grid, 4 robots, 8 moving obstacles,
+seed 1003**. Exploration completes at step **281**, with no remaining frontiers
+and 100% observed cells. This is an illustrative example, not a success-rate
+benchmark. [Run metadata](media/successful-exploration.json).
+
+<details>
+<summary>Reproduce this GIF after installation</summary>
+
+```bash
+python scripts/run_vorl.py --seed 1003 --horizon 640 --threads 1 --output runs/success-demo
+python scripts/verify_rollout.py --run runs/success-demo
+python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --require-success
+```
+
+</details>
+
 ## Installation
 
 Linux and Python 3.10 are the supported runtime. CPU inference is supported;
@@ -90,8 +110,9 @@ tests/         Unit and command-line tests
 
 This is a runnable method-level implementation using an upstream EPOM checkpoint
 and a separately fitted fidelity gate. It does not reproduce the paper's
-from-scratch policy training or benchmark tables. This code-only release does
-not include experiment results, ablation suites or Gazebo integration.
+from-scratch policy training or benchmark tables. Apart from the illustrative
+demo above, this release contains code and usage documentation, not benchmark
+results, ablation suites or Gazebo integration.
 
 EPOM is based on [When to Switch](https://github.com/Cognitive-AI-Systems/when-to-switch)
 and uses Sample Factory. See [third-party notices](THIRD_PARTY_NOTICES.md) for

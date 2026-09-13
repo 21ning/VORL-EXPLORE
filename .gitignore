@@ -24,6 +24,8 @@ dist/
 .ruff_cache/
 # Generated data belongs in local run directories, not in the code release.
 examples/
-media/
+media/*
 *.npz
 *.gif
+!media/successful-exploration.gif
+!media/successful-exploration.json

@@ -1,5 +1,6 @@
 """Render an actual method-evaluation trajectory, never a synthetic replacement."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -87,7 +88,7 @@ def render_frame(data, summary, index):
     return image
 
 
-def render(run, output, stride=2):
+def render(run, output, stride=2, *, require_success=False):
     run, output = Path(run), Path(output)
     if stride < 1:
         raise ValueError("stride must be positive")
@@ -96,15 +97,22 @@ def render(run, output, stride=2):
         raise ValueError("Only fitted-gate method-evaluation rollouts may use this renderer")
     if output.exists():
         raise FileExistsError(output)
-    output.mkdir(parents=True)
+    if hashlib.sha256((run / "trajectory.npz").read_bytes()).hexdigest() != summary["trajectory_sha256"]:
+        raise ValueError("Trajectory hash does not match the run summary")
     with np.load(run / "trajectory.npz", allow_pickle=False) as source:
         data = {key: source[key] for key in source.files}
+    completed = not frontiers(data["known"][-1])
+    if completed != summary["success_no_frontiers"]:
+        raise ValueError("Completion flag does not match the final recorded map")
+    if require_success and not completed:
+        raise ValueError("A successful demo requires no remaining frontiers")
+    output.mkdir(parents=True)
     indices = list(range(0, len(data["known"]), stride))
     if indices[-1] != len(data["known"]) - 1:
         indices.append(len(data["known"]) - 1)
     frames = [render_frame(data, summary, i) for i in indices]
     gif = output / "vorl-explore.gif"
-    frames[0].save(gif, save_all=True, append_images=frames[1:], duration=[120] * (len(frames) - 1) + [1200], loop=0, disposal=2)
+    frames[0].save(gif, save_all=True, append_images=frames[1:], duration=[120] * (len(frames) - 1) + [2400], loop=0, disposal=2)
     frames[0].save(output / "first.png")
     frames[len(frames) // 2].save(output / "middle.png")
     frames[-1].save(output / "last.png")
@@ -115,7 +123,9 @@ def render(run, output, stride=2):
             decoded.load()
     report = {"trajectory_states": len(data["known"]), "rendered_state_indices": indices,
               "decoded_gif_frames": actual_frames, "size": frames[0].size, "source_seed": summary["seed"],
-              "source_trajectory_sha256": summary["trajectory_sha256"], "profile": summary["profile"]}
+              "source_trajectory_sha256": summary["trajectory_sha256"], "profile": summary["profile"],
+              "success_no_frontiers": completed, "final_frontier_count": len(frontiers(data["known"][-1])),
+              "gif_sha256": hashlib.sha256(gif.read_bytes()).hexdigest()}
     (output / "render-check.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
 
@@ -125,5 +135,6 @@ if __name__ == "__main__":
     parser.add_argument("--run", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--stride", type=int, default=2)
+    parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
     args = parser.parse_args()
-    render(args.run, args.output, args.stride)
+    render(args.run, args.output, args.stride, require_success=args.require_success)

@@ -1,0 +1,38 @@
+{
+  "description": "Selected successful dynamic exploration rollout; not a statistical benchmark.",
+  "method_commit": "a2656bdec2268ce1fd5e131e039bc144cc1785f9",
+  "scenario": {
+    "size": 40,
+    "robots": 4,
+    "dynamic_obstacles": 8,
+    "static_obstacle_probability": 0.3,
+    "obstacle_speed_ratio": 0.5,
+    "seed": 1003,
+    "horizon": 640,
+    "threads": 1,
+    "online_adaptation": false
+  },
+  "completion": {
+    "steps": 281,
+    "stop_reason": "no_frontiers",
+    "success_no_frontiers": true,
+    "final_frontier_count": 0,
+    "observed_cell_fraction": 1.0
+  },
+  "verification": {
+    "trajectory_and_gate_replay_passed": true,
+    "coupled_assignment_rounds_checked": 217,
+    "decoded_gif_frames": 142,
+    "render_stride": 2,
+    "first_middle_last_frames_visually_checked": true
+  },
+  "sha256": {
+    "method_source": "5f9fa3d8f9129fe5fe8d8e3a39d5a3a100479e2fd83774dc650fb8fd8f9d7a2f",
+    "config": "eabf2065a4933d10fbe4bae03a671183e7c45a6c1351841231a3792e48abf54b",
+    "policy": "549feac19e21593af072677305945d7c22bd7f66cb07927a92eb59f2f8a3cce9",
+    "gate": "29b83253de0c7516b7742eb59a9d589a59b0b3e98d73d8e77404c5db387ee0b8",
+    "trajectory": "0553bba596ec920685c0852f6161491327c7369ddea18eb83a66ce56d564dc1c",
+    "renderer": "9a77bd45657a3a5648eb0adb4047145ec6d93e65f771c2359e4859966dc61a5d",
+    "gif": "0b10691cb3867b391e94980815d9d7f3362f2dcdf1e30c040a260f522444b800"
+  }
+}

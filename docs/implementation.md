@@ -82,3 +82,11 @@ python scripts/fetch_epom.py --archive /path/to/weights.zip --output models/epom
 ```
 
 The same hash checks apply. Existing output directories are never replaced.
+
+## Successful demo
+
+The README animation is a selected successful run, not an aggregate benchmark.
+Its seed and provenance hashes are recorded in `media/successful-exploration.json`.
+The renderer's `--require-success` option checks the trajectory hash and refuses
+to render an incomplete run as a successful demo. It also checks the final map
+against the recorded completion flag; reaching the horizon is not success.
