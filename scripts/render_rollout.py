@@ -16,7 +16,8 @@ from vorl.grid import frontiers
 
 POGEMA_VERSION = "1.1.1"
 UNKNOWN_COLOR = "#bdbdbd"
-DYNAMIC_COLOR = "#737373"
+DYNAMIC_COLOR = "#e0e0e0"
+DYNAMIC_OPACITY = 0.55
 GRID_COLOR = "#8a8a8a"
 # Pogema 1.1.1 AnimationSettings.time_scale is 0.28 seconds per step.
 STEP_MS, INTRO_MS, FINAL_HOLD_MS = 280, 1120, 2240
@@ -187,7 +188,8 @@ def make_monitor(data, summary, dynamic_visible):
                     row, col = grid_holder.agents_xy_history[0][index]
                     agent = Rectangle(x=col * scale, y=(summary["size"] - row - 1) * scale,
                                       width=scale, height=scale, rx=0, fill=DYNAMIC_COLOR,
-                                      stroke=GRID_COLOR, stroke_width=4, data_layer="moving-obstacle")
+                                      opacity=DYNAMIC_OPACITY, stroke=GRID_COLOR,
+                                      stroke_width=2, data_layer="moving-obstacle")
                     agents[index] = agent
                 self.set_visibility(agent, self.entity_visible[:, index], True)
             return agents
@@ -299,7 +301,8 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "playback": "recorded VORL states; no Pogema simulation or policy rerun",
               "view": "persistent team-shared map; moving entities visible only in current team sensing",
               "map_style": "cell-aligned occupancy, opaque gray unknown mask, grid lines above mask",
-              "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
+              "dynamic_obstacle_style": "translucent near-white square with a slight gray tint during motion; ordinary occupancy when stationary",
+              "moving_obstacle_color": DYNAMIC_COLOR, "moving_obstacle_opacity": DYNAMIC_OPACITY,
               "motion_indicator": "position changes from state t to t+1; false at the terminal state",
               "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
               "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",

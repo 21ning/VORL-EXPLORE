@@ -19,10 +19,10 @@ to the team's shared map: an all-unknown pre-observation intro, then the recorde
 observations merged from every robot. Unknown cells have an opaque gray mask,
 with grid lines visible throughout. Filled cells are remembered occupancy;
 colored circles/rings are robots/assigned frontiers.
-Moving obstacles appear as gray squares during motion and return to ordinary
-obstacle cells when stationary. The motion highlight uses recorded displacement
-between consecutive states and is limited to current team sensing. The map
-retains last-observed occupancy until sensed again.
+Moving obstacles appear as translucent, near-white squares with a slight gray
+tint and return to ordinary obstacle cells when stationary. The motion highlight
+uses recorded displacement between consecutive states and is limited to current
+team sensing. The map retains last-observed occupancy until sensed again.
 
 Normal Pogema playback: **0.28 seconds per step**, with every step retained.
 The full GIF lasts about 1 minute 49 seconds, including the intro and final hold.

@@ -178,6 +178,7 @@ def test_dynamic_square_switches_to_ordinary_occupancy_on_each_stop():
         assert len(squares) == 1
         square = squares[0]
         assert square.get("fill") == renderer.DYNAMIC_COLOR
+        assert float(square.get("opacity")) == renderer.DYNAMIC_OPACITY == 0.55
         assert square.get("width") == square.get("height") == "100"
         assert (square.get("visibility") == "visible") == moving_now
         assert len(root.findall("s:circle", ns)) == 2  # Robot and its hidden goal only.
@@ -205,6 +206,28 @@ def test_moving_square_does_not_reveal_unobserved_obstacles():
     assert not monitor.entity_visible[:, 1].any()
 
 
+def test_moving_square_rasterizes_to_a_subtle_gray_white():
+    pytest.importorskip("pogema")
+    cairo = pytest.importorskip("cairosvg")
+    from io import BytesIO
+    from PIL import Image
+    data, summary = motion_fixture()
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 4))
+    svg = renderer.native_frame_svg(monitor, monitor.recorded_offset + 1)
+    root = ET.fromstring(svg)
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    square = next(r for r in root.findall("s:rect", ns) if r.get("data-layer") == "moving-obstacle")
+    left, top, width, height = map(float, root.get("viewBox").split())
+    x = (float(square.get("x")) + 50 - left) * 500 / width
+    y = (float(square.get("y")) + 50 - top) * 500 / height
+    png = cairo.svg2png(bytestring=svg.encode(), output_width=500, output_height=500,
+                        background_color="white")
+    with Image.open(BytesIO(png)) as frame:
+        rgb = frame.convert("RGB").getpixel((int(x), int(y)))
+    # Alpha compositing of #e0e0e0 at 55% over white yields approximately #eeeeee.
+    assert all(abs(channel - 238) <= 1 for channel in rgb)
+
+
 def test_native_rectangle_motion_uses_xy_not_circle_centers():
     pytest.importorskip("pogema")
     from pogema.animation import AnimationMonitor
@@ -213,6 +236,8 @@ def test_native_rectangle_motion_uses_xy_not_circle_centers():
     root = ET.fromstring(monitor.create_animation().render())
     ns = {"s": "http://www.w3.org/2000/svg"}
     square = next(r for r in root.findall("s:rect", ns) if r.get("data-layer") == "moving-obstacle")
+    assert square.get("fill") == renderer.DYNAMIC_COLOR == "#e0e0e0"
+    assert float(square.get("opacity")) == renderer.DYNAMIC_OPACITY
     animations = {a.get("attributeName"): a for a in square.findall("s:animate", ns)}
     assert {"x", "y", "visibility"} <= animations.keys()
     assert not {"cx", "cy"} & animations.keys()

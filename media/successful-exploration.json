@@ -30,7 +30,9 @@
     "intro_first_middle_last_frames_visually_checked": true,
     "normal_speed_matches_pogema_default": true,
     "grid_visible_over_opaque_unknown_mask": true,
-    "moving_square_and_stationary_occupancy_switch_checked": true
+    "moving_square_and_stationary_occupancy_switch_checked": true,
+    "translucent_near_white_moving_pixels_checked": 330,
+    "stationary_ordinary_occupancy_pixels_checked": 1276
   },
   "animation": {
     "backend": "pogema.animation.AnimationMonitor",
@@ -42,8 +44,9 @@
     "intro": "Initial robot poses on an all-unknown map, before first sensing; not an extra rollout step.",
     "initial_recorded_observed_fraction": 0.106875,
     "moving_obstacle_visibility": "current union of all robot sensor windows",
-    "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
-    "moving_obstacle_color": "#737373",
+    "dynamic_obstacle_style": "translucent near-white square with a slight gray tint during motion; ordinary occupancy when stationary",
+    "moving_obstacle_color": "#e0e0e0",
+    "moving_obstacle_opacity": 0.55,
     "motion_indicator": "position changes from state t to t+1; false at the terminal state",
     "occupancy": "last-observed occupancy is retained until the cell is sensed again",
     "gif_source": "Native Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only.",
@@ -65,8 +68,8 @@
     "policy": "549feac19e21593af072677305945d7c22bd7f66cb07927a92eb59f2f8a3cce9",
     "gate": "29b83253de0c7516b7742eb59a9d589a59b0b3e98d73d8e77404c5db387ee0b8",
     "trajectory": "24039b9c3b6dc8dd651e124e2113920ddb2e614e17d457e05ffa4a4f67d8dc54",
-    "renderer": "7488c80131a8c2bc07f14e95043217446701d806db3df2ca0f51405a2ed40f2b",
-    "gif": "648aa12ca14632708b68a360236a1af495cd7f7228fb6b8529c6cc54b60e8c8c",
-    "svg": "6466960a5c271db6bc9f9fec5e946ac60c3aba2977a3fe7443cb6156fdbaca7b"
+    "renderer": "0d2ba904c7434bf8dc7555107631d923f8ec881f3fe4e3fe2301c20e00f7b376",
+    "gif": "d011dba5782d604c12d75d3315205224acbce959c530fcd63c94208d20bdedd1",
+    "svg": "51111ed61a789384e8b04c23d567c935104b53d95257d15035d7031e6ab90d53"
   }
 }
