@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace
+import xml.etree.ElementTree as ET
 
 import numpy as np
 
@@ -17,6 +18,8 @@ from vorl.grid import frontiers
 POGEMA_VERSION = "1.1.1"
 UNKNOWN_COLOR = "#e0e0e0"
 UNKNOWN_OPACITY = 0.55
+OBSERVER_UNKNOWN_COLOR = "#808080"
+OBSERVER_UNKNOWN_OPACITY = 0.15
 DYNAMIC_COLOR = "#737373"
 DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
@@ -70,7 +73,7 @@ def validate_recording(data, summary, radius):
     return dynamic_visible
 
 
-def make_monitor(data, summary, dynamic_visible):
+def make_monitor(data, summary, dynamic_visible, *, observer=False):
     """Adapt recorded states, not simulation dynamics, to the installed Pogema."""
     try:
         import gym
@@ -93,9 +96,16 @@ def make_monitor(data, summary, dynamic_visible):
     # occupancy. This also aligns the color with Pogema's interpolated SVG motion.
     moving = np.zeros_like(dynamic_visible)
     moving[:-1] = np.any(np.diff(data["dynamic"], axis=0) != 0, axis=-1)
-    moving_visible = moving & dynamic_visible
+    moving_visible = moving if observer else moving & dynamic_visible
     entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), moving_visible], axis=1)
-    ordinary_occupancy = data["known"] == 1
+    if observer:
+        # Viewer-only truth: never fed to a policy or written into the shared map.
+        ordinary_occupancy = np.repeat(data["static_map"][None].astype(bool), len(joint), axis=0)
+        for state, cells in enumerate(data["dynamic"]):
+            stationary = cells[~moving[state]]
+            ordinary_occupancy[state, stationary[:, 0], stationary[:, 1]] = True
+    else:
+        ordinary_occupancy = data["known"] == 1
     for state, cells in enumerate(data["dynamic"]):
         highlighted = cells[moving_visible[state]]
         ordinary_occupancy[state, highlighted[:, 0], highlighted[:, 1]] = False
@@ -142,8 +152,8 @@ def make_monitor(data, summary, dynamic_visible):
         def create_obstacles(self, grid_holder, animation_config):
             cfg = self.svg_settings
             size = summary["size"]
-            # Never display the ground-truth obstacle map. Occupancy blocks fill
-            # their grid cells and preserve recorded (including stale) occupancy.
+            # Shared view uses recorded occupancy; observer view uses display-only
+            # ground truth. Neither view changes the recorded observations.
             occupied = np.any(self.ordinary_history, axis=0).astype(np.uint8)
             holder = grid_holder.copy(update={"obstacles": occupied})
             blocks = super().create_obstacles(holder, animation_config)
@@ -162,14 +172,15 @@ def make_monitor(data, summary, dynamic_visible):
                 tile = Rectangle(x=int(col) * cfg.scale_size,
                                  y=(size - int(row) - 1) * cfg.scale_size,
                                  width=cfg.scale_size, height=cfg.scale_size,
-                                 fill=UNKNOWN_COLOR, opacity=UNKNOWN_OPACITY, data_layer="unknown-mask")
+                                 fill=OBSERVER_UNKNOWN_COLOR if observer else UNKNOWN_COLOR,
+                                 opacity=OBSERVER_UNKNOWN_OPACITY if observer else UNKNOWN_OPACITY,
+                                 data_layer="unknown-mask")
                 self.set_visibility(tile, self.shared_history[:, row, col] == 255, animation_config.static)
                 fog.append(tile)
             background = Rectangle(x=0, y=0, width=size * cfg.scale_size,
                                    height=size * cfg.scale_size, fill="#ffffff")
-            # Grid lines sit ABOVE the translucent, lightly tinted unknown mask.
-            # Unknown occupancy is hidden independently above, so lowering the
-            # mask opacity never exposes the ground-truth obstacle layout.
+            # Grid lines stay above the mask in both display modes. Shared view
+            # hides unknown geometry; observer view tints the original geometry.
             extent, line_width = size * cfg.scale_size, 4
             grid = []
             for line in range(size + 1):
@@ -248,11 +259,33 @@ def make_monitor(data, summary, dynamic_visible):
     monitor.targets_xy_history = timeline(drawable_goals, drawable_goals[0]).tolist()
     monitor.dones_history = np.zeros((len(monitor.agents_xy_history), joint.shape[1]), dtype=bool).tolist()
     monitor.shared_history = timeline(data["known"], np.full_like(data["known"][0], 255))
-    monitor.ordinary_history = timeline(ordinary_occupancy, np.zeros_like(ordinary_occupancy[0]))
+    initial_occupancy = np.zeros_like(ordinary_occupancy[0])
+    if observer:
+        initial_occupancy = data["static_map"].astype(bool).copy()
+        initial_dynamic = data["dynamic"][0]
+        initial_occupancy[initial_dynamic[:, 0], initial_dynamic[:, 1]] = True
+    monitor.ordinary_history = timeline(ordinary_occupancy, initial_occupancy)
     monitor.entity_visible = timeline(entity_visible, np.arange(joint.shape[1]) < robots)
     monitor.goal_visible = timeline(goal_visible, np.zeros(joint.shape[1], dtype=bool))
     monitor.recorded_offset = intro
+    monitor.observer_view = observer
     return monitor
+
+
+def observer_svg_layers(svg):
+    """Place native moving squares beneath the fog, leaving robots above it."""
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    root = ET.fromstring(svg)
+    # Grid is a fallback for a fully explored frame, which has no fog rectangles.
+    overlay = [shape for shape in root if shape.get("data-layer") in ("unknown-mask", "grid")]
+    squares = [shape for shape in root if shape.get("data-layer") == "moving-obstacle"]
+    for square in squares:
+        root.remove(square)
+    insertion = list(root).index(overlay[0])
+    for square in squares:
+        root.insert(insertion, square)
+        insertion += 1
+    return ET.tostring(root, encoding="unicode")
 
 
 def native_frame_svg(monitor, index):
@@ -263,10 +296,11 @@ def native_frame_svg(monitor, index):
         setattr(frame, key, [getattr(monitor, key)[index]])
     for key in ["shared_history", "ordinary_history", "entity_visible", "goal_visible"]:
         setattr(frame, key, getattr(monitor, key)[index:index + 1])
-    return frame.create_animation(AnimationConfig(static=True)).render()
+    svg = frame.create_animation(AnimationConfig(static=True)).render()
+    return observer_svg_layers(svg) if monitor.observer_view else svg
 
 
-def render(run, output, stride=1, *, require_success=False, svg_only=False, width=720):
+def render(run, output, stride=1, *, require_success=False, svg_only=False, width=720, observer=False):
     run, output = Path(run), Path(output)
     if stride < 1 or width < 160:
         raise ValueError("stride must be positive and width must be at least 160")
@@ -289,7 +323,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
     if config_hash != summary["config_sha256"]:
         raise ValueError("Config hash does not match the run summary")
     dynamic_visible = validate_recording(data, summary, config["sensing_radius"])
-    monitor = make_monitor(data, summary, dynamic_visible)
+    monitor = make_monitor(data, summary, dynamic_visible, observer=observer)
     if not svg_only:
         try:
             import cairosvg
@@ -299,6 +333,8 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
     output.mkdir(parents=True)
     svg = output / "vorl-explore.svg"
     monitor.save_animation(str(svg))
+    if observer:
+        svg.write_text(observer_svg_layers(svg.read_text()))
     report = {"backend": "pogema.animation.AnimationMonitor", "pogema_version": version("pogema"),
               "playback": "recorded VORL states; no Pogema simulation or policy rerun",
               "view": "persistent team-shared map; moving entities visible only in current team sensing",
@@ -318,6 +354,12 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "profile": summary["profile"], "success_no_frontiers": completed,
               "final_frontier_count": len(frontiers(data["known"][-1])),
               "svg_sha256": hashlib.sha256(svg.read_bytes()).hexdigest()}
+    if observer:
+        report.update(view="observer ground truth with gray overlay on team-unexplored cells",
+                      map_style="original geometry under 15% gray overlay; grid lines above overlay",
+                      unknown_mask_color=OBSERVER_UNKNOWN_COLOR, unknown_mask_opacity=OBSERVER_UNKNOWN_OPACITY,
+                      unobserved_occupancy="visible to viewer under gray overlay; not supplied to agents",
+                      recorded_shared_map_unchanged=True)
     if not svg_only:
         indices = list(range(0, len(data["known"]), stride))
         if indices[-1] != len(data["known"]) - 1:
@@ -359,6 +401,7 @@ if __name__ == "__main__":
     parser.add_argument("--width", type=int, default=720, help="GIF width in pixels")
     parser.add_argument("--svg-only", action="store_true", help="Export native SVG without CairoSVG")
     parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
+    parser.add_argument("--observer", action="store_true", help="Show full terrain under a 15%% gray unknown overlay; display only")
     args = parser.parse_args()
     render(args.run, args.output, args.stride, require_success=args.require_success,
-           svg_only=args.svg_only, width=args.width)
+           svg_only=args.svg_only, width=args.width, observer=args.observer)

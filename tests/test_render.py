@@ -66,12 +66,13 @@ def recording_fixture(tmp_path):
     return run, data, summary
 
 
-def test_verified_terminal_map_renders_success_gif(tmp_path):
+@pytest.mark.parametrize("observer", [False, True])
+def test_verified_terminal_map_renders_success_gif(tmp_path, observer):
     pytest.importorskip("pogema")
     pytest.importorskip("cairosvg")
     run, _, _ = recording_fixture(tmp_path)
     output = tmp_path / "render"
-    renderer.render(run, output, require_success=True, width=200)
+    renderer.render(run, output, require_success=True, width=200, observer=observer)
     report = json.loads((output / "render-check.json").read_text())
     assert report["success_no_frontiers"] and report["final_frontier_count"] == 0
     assert report["rendered_state_indices"] == [0, 1, 2]
@@ -81,6 +82,9 @@ def test_verified_terminal_map_renders_success_gif(tmp_path):
     assert report["gif_duration_ms"] == renderer.INTRO_MS + 2 * renderer.STEP_MS + renderer.FINAL_HOLD_MS
     assert report["gif_sha256"] == hashlib.sha256((output / "vorl-explore.gif").read_bytes()).hexdigest()
     assert report["svg_sha256"] == hashlib.sha256((output / "vorl-explore.svg").read_bytes()).hexdigest()
+    if observer:
+        assert report["unknown_mask_opacity"] == 0.15
+        assert report["recorded_shared_map_unchanged"]
 
 
 def test_team_sensing_and_current_dynamic_visibility(tmp_path):
@@ -271,6 +275,55 @@ def test_native_rectangle_motion_uses_xy_not_circle_centers():
         expected = AnimationMonitor.compressed_anim(axis, values, monitor.svg_settings.time_scale)
         assert animations[axis].get("values") == expected.attributes["values"]
         assert animations[axis].get("keyTimes") == expected.attributes["keyTimes"]
+
+
+def test_observer_shows_unknown_geometry_under_15_percent_gray():
+    pytest.importorskip("pogema")
+    cairo = pytest.importorskip("cairosvg")
+    from io import BytesIO
+    from PIL import Image
+    data, summary = motion_fixture()
+    data["known"][:] = 255
+    data["known"][:, :2, :2] = 0
+    before = data["known"].copy()
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 1), observer=True)
+    for state, moving in enumerate([False, True, False, True, False]):
+        svg = renderer.native_frame_svg(monitor, monitor.recorded_offset + state)
+        root = ET.fromstring(svg)
+        layers = list(root)
+        fog = [shape for shape in root if shape.get("data-layer") == "unknown-mask"]
+        squares = [shape for shape in root if shape.get("data-layer") == "moving-obstacle"]
+        assert all(shape.get("fill") == "#808080" and float(shape.get("opacity")) == 0.15 for shape in fog)
+        assert all(layers.index(square) < layers.index(tile) for square in squares for tile in fog)
+        png = cairo.svg2png(bytestring=svg.encode(), output_width=500, output_height=500)
+        with Image.open(BytesIO(png)) as image:
+            frame = image.convert("RGB")
+            for pixel, expected in [((450, 450), (131, 156, 167)),  # Unknown static wall.
+                                    ((450, 150), (236, 236, 236)),  # Unknown floor.
+                                    ((150, 150), (255, 255, 255))]:  # Known free space.
+                assert np.max(np.abs(np.array(frame.getpixel(pixel)) - expected)) <= 1
+            row, col = data["dynamic"][state, 0]
+            expected = (117, 117, 117) if moving else (131, 156, 167)
+            assert np.max(np.abs(np.array(frame.getpixel((col * 100 + 50, row * 100 + 50))) - expected)) <= 1
+    assert np.array_equal(data["known"], before)
+    assert np.array_equal(monitor.shared_history[monitor.recorded_offset:monitor.recorded_offset + 5], before)
+    assert not monitor.entity_visible[-1, 1]  # Final hold is stationary.
+
+
+def test_observer_intro_keeps_full_terrain_but_no_motion(tmp_path):
+    pytest.importorskip("pogema")
+    _, data, summary = recording_fixture(tmp_path)
+    monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 3), observer=True)
+    assert monitor.ordinary_history[0, 4, 4]  # Static wall.
+    assert monitor.ordinary_history[0, 4, 3]  # Initial dynamic obstacle, not yet moving.
+    assert np.all(monitor.shared_history[0] == 255)
+    assert not monitor.entity_visible[0, 1]
+    # Animated SVG is reordered without changing native motion tracks or timing.
+    root = ET.fromstring(renderer.observer_svg_layers(monitor.create_animation().render()))
+    layers = list(root)
+    square = next(shape for shape in root if shape.get("data-layer") == "moving-obstacle")
+    fog = [shape for shape in root if shape.get("data-layer") == "unknown-mask"]
+    assert all(layers.index(square) < layers.index(tile) for tile in fog)
 
 
 def test_playback_uses_normal_pogema_speed(tmp_path):
