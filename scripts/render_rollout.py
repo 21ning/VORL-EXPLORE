@@ -39,6 +39,8 @@ def validate_recording(data, summary, radius):
     for key, shape in expected.items():
         if data[key].shape != shape or not np.issubdtype(data[key].dtype, np.integer):
             raise ValueError(f"Invalid {key} shape or dtype")
+    if "dynamic_active" in data and data["dynamic_active"].shape != (states, moving):
+        raise ValueError("Invalid recorded dynamic trip state")
     if not np.isin(data["static_map"], [0, 1]).all():
         raise ValueError("Invalid static map")
     joint = np.concatenate([data["positions"], data["dynamic"]], axis=1)
@@ -91,11 +93,13 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
     goals[:-1, :robots] = data["goals"]
     goal_visible = np.all(goals >= 0, axis=-1)
     drawable_goals = np.where(goal_visible[..., None], goals, joint)
-    # State t describes the interval t -> t+1: highlight only actual displacement,
-    # not intended actions. A wait, a blocked move and the terminal hold are ordinary
-    # occupancy. This also aligns the color with Pogema's interpolated SVG motion.
-    moving = np.zeros_like(dynamic_visible)
-    moving[:-1] = np.any(np.diff(data["dynamic"], axis=0) != 0, axis=-1)
+    # A gray square denotes an assigned obstacle trip, rather than one
+    # interpolated displacement. Older recordings remain renderable.
+    if "dynamic_active" in data:
+        moving = np.asarray(data["dynamic_active"], dtype=bool)
+    else:
+        moving = np.zeros_like(dynamic_visible)
+        moving[:-1] = np.any(np.diff(data["dynamic"], axis=0) != 0, axis=-1)
     moving_visible = moving if observer else moving & dynamic_visible
     entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), moving_visible], axis=1)
     if observer:
@@ -341,9 +345,9 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "map_style": "cell-aligned occupancy, translucent near-white unknown mask with a slight gray tint, grid lines above mask",
               "unknown_mask_color": UNKNOWN_COLOR, "unknown_mask_opacity": UNKNOWN_OPACITY,
               "unobserved_occupancy": "hidden independently of mask opacity; no ground-truth map beneath the mask",
-              "dynamic_obstacle_style": "gray square during a recorded moving interval; ordinary occupancy when stationary",
+              "dynamic_obstacle_style": "gray square for an assigned obstacle trip; ordinary occupancy after arrival",
               "moving_obstacle_color": DYNAMIC_COLOR, "moving_obstacle_opacity": DYNAMIC_OPACITY,
-              "motion_indicator": "position changes from state t to t+1; false at the terminal state",
+              "motion_indicator": "recorded dynamic trip state; legacy recordings use position changes",
               "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
               "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",
               "trajectory_states": len(data["known"]), "native_history_matches_recording": True,

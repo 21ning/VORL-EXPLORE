@@ -2,7 +2,8 @@
 
 This is an explicit NumPy simulator, not a claim of bitwise Pogema parity.
 All policy access goes through SensorState; ground truth remains here and in
-the offline trajectory recorder. Obstacle motion occurs once per two ticks.
+the offline trajectory recorder. Obstacle motion occurs once per two ticks;
+each assigned trip is capped at five grid moves.
 """
 from dataclasses import dataclass
 
@@ -77,6 +78,7 @@ class GridWorld:
         self.positions = list(map(tuple, self.free_component[chosen[:robots]]))
         self.dynamic_positions = list(map(tuple, self.free_component[chosen[robots:]]))
         self.dynamic_paths = [[] for _ in self.dynamic_positions]
+        self.dynamic_active = [False] * dynamic_obstacles
         self.dynamic_waits = [0] * dynamic_obstacles
         self.shared_map = np.full((size, size), UNKNOWN, dtype=np.uint8)
         self.seen = np.zeros((robots, size, size), dtype=bool)
@@ -110,8 +112,8 @@ class GridWorld:
         occupied = set(self.dynamic_positions) | set(self.positions)
         for i, position in enumerate(self.dynamic_positions):
             if len(self.dynamic_paths[i]) <= 1 or self.dynamic_waits[i] >= 10:
-                goal = tuple(self.free_component[self.rng.integers(len(self.free_component))])
-                self.dynamic_paths[i] = astar_path(self.static_map, position, goal) or [position]
+                self.dynamic_paths[i] = self._sample_short_path(position, occupied)
+                self.dynamic_active[i] = len(self.dynamic_paths[i]) > 1
                 self.dynamic_waits[i] = 0
             path = self.dynamic_paths[i]
             nxt = path[1] if len(path) > 1 else position
@@ -121,8 +123,21 @@ class GridWorld:
                 self.dynamic_positions[i] = nxt
                 self.dynamic_paths[i] = path[1:]
                 self.dynamic_waits[i] = 0
+                if len(self.dynamic_paths[i]) <= 1:
+                    self.dynamic_active[i] = False
             else:
                 self.dynamic_waits[i] += 1
+
+    def _sample_short_path(self, position, occupied):
+        """Choose a random unoccupied reachable target within five moves."""
+        for index in self.rng.permutation(len(self.free_component)):
+            goal = tuple(self.free_component[index])
+            if goal == position or goal in occupied:
+                continue
+            path = astar_path(self.static_map, position, goal)
+            if path is not None and 1 < len(path) <= 6:
+                return path
+        return [position]
 
     def step(self, actions):
         previous = self.positions.copy()

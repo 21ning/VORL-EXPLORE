@@ -50,7 +50,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
     sensor = world.observe()
     controller = Controller(sensor, policy, config, gate, seed=seed, adapt=adapt)
     initial_gate_weights, initial_gate_bias = controller.model.weights.copy(), controller.model.bias.copy()
-    records = {name: [] for name in ("known", "positions", "dynamic", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
+    records = {name: [] for name in ("known", "positions", "dynamic", "dynamic_active", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
     delayed = deque(maxlen=config["history_window"])
     training_features, training_quality = [], []
     start = time.monotonic()
@@ -62,6 +62,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
             records["known"].append(sensor.shared_map.copy())
             records["positions"].append(sensor.positions.copy())
             records["dynamic"].append(world.dynamic_positions.copy())
+            records["dynamic_active"].append(world.dynamic_active.copy())
             if not frontiers(sensor.shared_map):
                 outcome = "no_frontiers"
                 break
@@ -107,6 +108,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
         "known": np.asarray(records["known"], dtype=np.uint8),
         "positions": np.asarray(records["positions"], dtype=np.int16),
         "dynamic": np.asarray(records["dynamic"], dtype=np.int16).reshape(len(records["dynamic"]), dynamic_obstacles, 2),
+        "dynamic_active": np.asarray(records["dynamic_active"], dtype=bool).reshape(len(records["dynamic_active"]), dynamic_obstacles),
         "goals": np.asarray(records["goals"], dtype=np.int16).reshape(-1, robots, 2),
         "fidelity": np.asarray(records["fidelity"], dtype=np.float32).reshape(-1, robots),
         "modes": np.asarray(records["modes"], dtype=np.uint8).reshape(-1, robots),
@@ -127,7 +129,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
         "paper_original_weights_reproduced": False, "online_adaptation": adapt,
         "gate_unchanged": gate_unchanged, "gate_updates": controller.model.update_count,
         "seed": seed, "size": size, "robots": robots, "dynamic_obstacles": dynamic_obstacles,
-        "obstacle_speed_ratio": 0.5, "horizon": horizon, "stop_reason": outcome,
+        "obstacle_speed_ratio": 0.5, "dynamic_trip_max_moves": 5, "horizon": horizon, "stop_reason": outcome,
         "success_no_frontiers": outcome == "no_frontiers", "wall_seconds": time.monotonic() - start,
         **world.metrics(), **controller.counts, "policy": policy.provenance,
         "gate_checkpoint_sha256": canonical_hash(gate), "config_sha256": canonical_hash(config),

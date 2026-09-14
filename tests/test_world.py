@@ -38,6 +38,16 @@ def test_seeded_map_and_dynamic_obstacle_speed():
         assert max(displacement) <= (0 if step % 2 == 0 else 1)
 
 
+def test_dynamic_trips_are_short_and_inactive_on_arrival():
+    world = GridWorld(size=12, robots=1, dynamic_obstacles=1, density=0.1, seed=3)
+    for _ in range(40):
+        world.step([0])
+        path = world.dynamic_paths[0]
+        assert len(path) <= 6
+        if not world.dynamic_active[0]:
+            assert len(path) <= 1
+
+
 def test_sensor_state_has_no_ground_truth_field_and_unknown_is_preserved():
     world = GridWorld(size=40, robots=1, dynamic_obstacles=4, density=0.3, seed=7)
     state = world.observe()
