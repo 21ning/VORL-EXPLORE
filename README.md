@@ -111,18 +111,21 @@ checkpoints/   Lightweight warm-start gate
 tests/         Unit and command-line tests
 ```
 
+## Acknowledgements
+
+We thank the developers of [Pogema](https://github.com/AIRI-Institute/pogema)
+for the multi-agent grid environment and animation tools used in this project.
+
 ## Citation
 
 If this repository is useful to your research, please cite the paper:
 
 ```bibtex
-@article{liu2026vorl,
-  title   = {VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments},
-  author  = {Liu, Ning and Shen, Sen and Li, Zheng and Liu, Sheng and Han, Dongkun and Lyu, Shangke and Braunl, Thomas},
-  journal = {arXiv preprint arXiv:2603.07973},
-  year    = {2026},
-  month   = mar,
-  doi     = {10.48550/arXiv.2603.07973},
-  url     = {https://arxiv.org/abs/2603.07973}
+@inproceedings{liu2026vorl,
+  title     = {VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments},
+  author    = {Liu, Ning and Shen, Sen and Li, Zheng and Liu, Sheng and Han, Dongkun and Lyu, Shangke and Braunl, Thomas},
+  booktitle = {2026 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2603.07973}
 }
 ```
