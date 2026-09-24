@@ -10,6 +10,22 @@ and controls a hysteresis switch between A* planning and an EPOM reactive policy
 The implementation includes dynamic grid environments, recovery actions and
 optional self-supervised gate updates.
 
+## Citation
+
+If this repository is useful to your research, please cite the paper:
+
+```bibtex
+@article{liu2026vorl,
+  title   = {VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments},
+  author  = {Liu, Ning and Shen, Sen and Li, Zheng and Liu, Sheng and Han, Dongkun and Lyu, Shangke and Braunl, Thomas},
+  journal = {arXiv preprint arXiv:2603.07973},
+  year    = {2026},
+  month   = mar,
+  doi     = {10.48550/arXiv.2603.07973},
+  url     = {https://arxiv.org/abs/2603.07973}
+}
+```
+
 ## Installation
 
 Linux and Python 3.10 are the supported runtime. CPU inference is supported;
