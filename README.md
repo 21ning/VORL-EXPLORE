@@ -10,42 +10,6 @@ and controls a hysteresis switch between A* planning and an EPOM reactive policy
 The implementation includes dynamic grid environments, recovery actions and
 optional self-supervised gate updates.
 
-## Demo
-
-The displayed successful rollout uses a **40×40 grid, 4 robots, 12 moving
-obstacles, and seed 1015**. Exploration completes in **254 steps**, with no
-remaining frontiers. It is rendered with **Pogema 1.1.1 AnimationMonitor** in
-observer view: the original terrain remains visible, while cells not yet observed
-by the team receive a 15% gray overlay. This display-only overlay does not change
-the agents' recorded shared map or policy inputs. Grid lines remain visible;
-colored circles/rings are robots/assigned frontiers.
-An assigned dynamic obstacle remains a gray square for its complete trip and
-returns to the ordinary obstacle style only after it reaches its target. Each
-target is sampled from reachable free cells and is at most five grid moves away.
-After arrival, a different eligible ordinary obstacle is randomly selected as
-the next dynamic obstacle and receives its own short target path.
-
-The GIF is exported at **1.5× the normal Pogema rate**: **0.187 seconds per
-step**, with every step retained. The compact **280×280** version lasts about
-**50 seconds**, including the intro and final hold.
-
-[Native animated SVG](media/successful-exploration.svg) ·
-[Run metadata](media/successful-exploration.json).
-This selected example is not a success-rate benchmark.
-
-<details>
-<summary>Reproduce this animation after installation</summary>
-
-```bash
-python scripts/run_vorl.py --seed 1015 --dynamic-obstacles 12 --horizon 640 --threads 1 --output runs/success-demo
-python scripts/verify_rollout.py --run runs/success-demo
-.venv-animation/bin/python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --observer --require-success --width 280
-```
-
-Set up the separate animation environment below before the last command.
-
-</details>
-
 ## Installation
 
 Linux and Python 3.10 are the supported runtime. CPU inference is supported;
