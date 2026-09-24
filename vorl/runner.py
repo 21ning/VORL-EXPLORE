@@ -50,7 +50,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
     sensor = world.observe()
     controller = Controller(sensor, policy, config, gate, seed=seed, adapt=adapt)
     initial_gate_weights, initial_gate_bias = controller.model.weights.copy(), controller.model.bias.copy()
-    records = {name: [] for name in ("known", "positions", "dynamic", "dynamic_active", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
+    records = {name: [] for name in ("static", "known", "positions", "dynamic", "dynamic_active", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
     delayed = deque(maxlen=config["history_window"])
     training_features, training_quality = [], []
     start = time.monotonic()
@@ -59,6 +59,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
     with (output / "progress.jsonl").open("w", encoding="utf-8") as progress, (output / "allocation.jsonl").open("w", encoding="utf-8") as allocation:
         for step in range(horizon + 1):
             # Record the state reached by previous actions before deciding another.
+            records["static"].append(world.static_map.copy())
             records["known"].append(sensor.shared_map.copy())
             records["positions"].append(sensor.positions.copy())
             records["dynamic"].append(world.dynamic_positions.copy())
@@ -104,7 +105,8 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
                 progress.flush()
     # Decision fields are indexed by transitions, state fields by states: T vs T+1.
     arrays = {
-        "static_map": world.static_map,
+        "static_map": records["static"][0],
+        "static": np.asarray(records["static"], dtype=np.uint8),
         "known": np.asarray(records["known"], dtype=np.uint8),
         "positions": np.asarray(records["positions"], dtype=np.int16),
         "dynamic": np.asarray(records["dynamic"], dtype=np.int16).reshape(len(records["dynamic"]), dynamic_obstacles, 2),

@@ -30,20 +30,25 @@ def verify(run, gate_path):
     assert hashlib.sha256((run / "trajectory.npz").read_bytes()).hexdigest() == summary["trajectory_sha256"]
     with np.load(run / "trajectory.npz", allow_pickle=False) as data:
         positions, dynamic, known, actions = data["positions"], data["dynamic"], data["known"], data["actions"]
+        static_history = data["static"] if "static" in data else np.repeat(data["static_map"][None], len(positions), axis=0)
+        dynamic_active = data["dynamic_active"] if "dynamic_active" in data else np.ones(dynamic.shape[:2], dtype=bool)
+        assert static_history.shape == known.shape
+        assert dynamic_active.shape == dynamic.shape[:2]
         assert len(positions) == len(actions) + 1 == summary["steps"] + 1
         assert np.all(np.abs(np.diff(positions, axis=0)).sum(axis=-1) <= 1)
         assert np.all(np.diff(np.count_nonzero(known != 255, axis=(1, 2))) >= 0)
         for t in range(len(positions)):
             all_positions = np.concatenate([positions[t], dynamic[t]], axis=0)
             assert len(set(map(tuple, all_positions))) == len(all_positions)
-            assert all(data["static_map"][tuple(p)] == 0 for p in all_positions)
+            assert all(static_history[t][tuple(p)] == 0 for p in positions[t])
+            assert all(static_history[t][tuple(p)] == 0 for p, active in zip(dynamic[t], dynamic_active[t]) if active)
             if t > 0:
                 dynamic_motion = np.abs(dynamic[t] - dynamic[t - 1]).sum(axis=-1)
                 assert np.all(dynamic_motion <= (1 if t % 2 == 0 else 0))
                 for i, action in enumerate(actions[t - 1]):
                     displacement = tuple(positions[t, i] - positions[t - 1, i])
                     assert displacement in ((0, 0), MOVES[int(action)])
-            truth = data["static_map"].copy()
+            truth = static_history[t].copy()
             for p in dynamic[t]:
                 truth[tuple(p)] = 1
             radius = config["sensing_radius"]

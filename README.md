@@ -22,8 +22,9 @@ the agents' recorded shared map or policy inputs. Grid lines remain visible;
 colored circles/rings are robots/assigned frontiers.
 An assigned dynamic obstacle remains a gray square for its complete trip and
 returns to the ordinary obstacle style only after it reaches its target. Each
-new target is sampled from reachable free cells and is at most five grid moves
-away; reaching it triggers a fresh target sample on a later obstacle tick.
+target is sampled from reachable free cells and is at most five grid moves away.
+After arrival, a different eligible ordinary obstacle is randomly selected as
+the next dynamic obstacle and receives its own short target path.
 
 Normal Pogema playback: **0.28 seconds per step**, with every step retained.
 The full GIF lasts **49 seconds**, including the intro and final hold.
@@ -131,9 +132,10 @@ with Pogema physics. No policy weights or PyTorch are needed for animation.
 
 Add `--observer` for a full-map presentation: original terrain stays visible
 under a 15% gray overlay in unexplored regions. An obstacle is gray while it has
-an assigned trip, then uses the ordinary obstacle style after arrival. Each trip
-contains at most five grid moves. This viewer-only mode does not change the
-agents' observations or their recorded shared map.
+an assigned trip, then uses the ordinary obstacle style after arrival; another
+eligible ordinary obstacle is then selected to move. Each trip contains at most
+five grid moves. This viewer-only mode does not change the agents' observations
+or their recorded shared map.
 
 Renderer tests: install `pytest==8.4.2` in the animation environment and run
 `.venv-animation/bin/python -m pytest tests/test_render.py`.

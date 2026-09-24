@@ -79,6 +79,7 @@ class GridWorld:
         self.dynamic_positions = list(map(tuple, self.free_component[chosen[robots:]]))
         self.dynamic_paths = [[] for _ in self.dynamic_positions]
         self.dynamic_active = [False] * dynamic_obstacles
+        self.dynamic_replacement_pending = [False] * dynamic_obstacles
         self.dynamic_waits = [0] * dynamic_obstacles
         self.shared_map = np.full((size, size), UNKNOWN, dtype=np.uint8)
         self.seen = np.zeros((robots, size, size), dtype=bool)
@@ -111,7 +112,17 @@ class GridWorld:
     def _move_obstacles(self):
         occupied = set(self.dynamic_positions) | set(self.positions)
         for i, position in enumerate(self.dynamic_positions):
-            if len(self.dynamic_paths[i]) <= 1 or self.dynamic_waits[i] >= 10:
+            if not self.dynamic_active[i]:
+                if self.dynamic_replacement_pending[i]:
+                    self._replace_arrived_obstacle(i, occupied)
+                else:
+                    self.dynamic_paths[i] = self._sample_short_path(position, occupied)
+                    self.dynamic_active[i] = len(self.dynamic_paths[i]) > 1
+                self.dynamic_waits[i] = 0
+                position = self.dynamic_positions[i]
+            if not self.dynamic_active[i]:
+                continue
+            if self.dynamic_waits[i] >= 10:
                 self.dynamic_paths[i] = self._sample_short_path(position, occupied)
                 self.dynamic_active[i] = len(self.dynamic_paths[i]) > 1
                 self.dynamic_waits[i] = 0
@@ -125,19 +136,44 @@ class GridWorld:
                 self.dynamic_waits[i] = 0
                 if len(self.dynamic_paths[i]) <= 1:
                     self.dynamic_active[i] = False
+                    self.dynamic_replacement_pending[i] = True
+                    self.static_map[nxt] = 1
             else:
                 self.dynamic_waits[i] += 1
 
     def _sample_short_path(self, position, occupied):
         """Choose a random unoccupied reachable target within five moves."""
-        for index in self.rng.permutation(len(self.free_component)):
-            goal = tuple(self.free_component[index])
+        free_cells = np.argwhere(self.static_map == 0)
+        for index in self.rng.permutation(len(free_cells)):
+            goal = tuple(free_cells[index])
             if goal == position or goal in occupied:
                 continue
             path = astar_path(self.static_map, position, goal)
             if path is not None and 1 < len(path) <= 6:
                 return path
         return [position]
+
+    def _replace_arrived_obstacle(self, index, occupied):
+        """Turn a random eligible ordinary obstacle into the next mover."""
+        arrived = self.dynamic_positions[index]
+        occupied.remove(arrived)
+        candidates = np.argwhere(self.static_map == 1)
+        for candidate_index in self.rng.permutation(len(candidates)):
+            source = tuple(candidates[candidate_index])
+            if source == arrived or source in occupied:
+                continue
+            self.static_map[source] = 0
+            path = self._sample_short_path(source, occupied)
+            if len(path) > 1:
+                self.dynamic_positions[index] = source
+                self.dynamic_paths[index] = path
+                self.dynamic_active[index] = True
+                self.dynamic_replacement_pending[index] = False
+                self.dynamic_waits[index] = 0
+                occupied.add(source)
+                return
+            self.static_map[source] = 1
+        occupied.add(arrived)
 
     def step(self, actions):
         previous = self.positions.copy()
@@ -150,7 +186,11 @@ class GridWorld:
         for i, position in enumerate(self.positions):
             self.visited[i][position] = True
         assert len(set(self.positions + self.dynamic_positions)) == len(self.positions) + len(self.dynamic_positions)
-        assert all(self.static_map[p] == 0 for p in self.positions + self.dynamic_positions)
+        assert all(self.static_map[p] == 0 for p in self.positions)
+        assert all(self.static_map[p] == 0 for p, active in zip(self.dynamic_positions, self.dynamic_active) if active)
+        assert all(self.static_map[p] == 1 for p, active, pending in zip(
+            self.dynamic_positions, self.dynamic_active, self.dynamic_replacement_pending
+        ) if not active and pending)
         return self.observe(), interventions
 
     def metrics(self):

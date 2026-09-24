@@ -48,6 +48,24 @@ def test_dynamic_trips_are_short_and_inactive_on_arrival():
             assert len(path) <= 1
 
 
+def test_arrival_replaces_the_dynamic_entity_with_an_ordinary_obstacle():
+    world = GridWorld(size=12, robots=1, dynamic_obstacles=1, density=0.2, seed=3)
+    previous = None
+    replaced = False
+    for _ in range(100):
+        world.step([0])
+        if world.dynamic_replacement_pending[0]:
+            previous = world.dynamic_positions[0]
+            assert world.static_map[previous] == 1
+            continue
+        if previous is not None and world.dynamic_active[0]:
+            assert world.dynamic_positions[0] != previous
+            assert world.static_map[world.dynamic_positions[0]] == 0
+            replaced = True
+            break
+    assert previous is not None and replaced
+
+
 def test_sensor_state_has_no_ground_truth_field_and_unknown_is_preserved():
     world = GridWorld(size=40, robots=1, dynamic_obstacles=4, density=0.3, seed=7)
     state = world.observe()

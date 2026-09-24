@@ -41,13 +41,14 @@ def validate_recording(data, summary, radius):
             raise ValueError(f"Invalid {key} shape or dtype")
     if "dynamic_active" in data and data["dynamic_active"].shape != (states, moving):
         raise ValueError("Invalid recorded dynamic trip state")
-    if not np.isin(data["static_map"], [0, 1]).all():
+    static_history = data.get("static", np.repeat(data["static_map"][None], states, axis=0))
+    if static_history.shape != (states, size, size) or not np.isin(static_history, [0, 1]).all():
         raise ValueError("Invalid static map")
     joint = np.concatenate([data["positions"], data["dynamic"]], axis=1)
     if np.any(joint < 0) or np.any(joint >= size):
         raise ValueError("Recorded position is outside the map")
-    if np.any(data["static_map"][joint[..., 0], joint[..., 1]]):
-        raise ValueError("Recorded position intersects a static obstacle")
+    if np.any(static_history[np.arange(states)[:, None], data["positions"][..., 0], data["positions"][..., 1]]):
+        raise ValueError("Recorded robot intersects a static obstacle")
     if any(len({tuple(p) for p in state}) != robots + moving for state in joint):
         raise ValueError("Recorded entities overlap")
     if np.any(np.abs(np.diff(joint, axis=0)).sum(axis=-1) > 1):
@@ -61,7 +62,7 @@ def validate_recording(data, summary, radius):
     shared = np.full((size, size), 255, dtype=np.uint8)
     dynamic_visible = np.zeros((states, moving), dtype=bool)
     for index, positions in enumerate(data["positions"]):
-        truth = data["static_map"].copy()
+        truth = static_history[index].copy()
         moving_positions = data["dynamic"][index]
         truth[moving_positions[:, 0], moving_positions[:, 1]] = 1
         observed = np.zeros((size, size), dtype=bool)
@@ -86,6 +87,7 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
     if version("pogema") != POGEMA_VERSION:
         raise RuntimeError(f"This playback adapter requires pogema=={POGEMA_VERSION}")
     robots = summary["robots"]
+    static_history = data.get("static", np.repeat(data["static_map"][None], len(data["known"]), axis=0))
     joint = np.concatenate([data["positions"], data["dynamic"]], axis=1)
     goals = np.full_like(joint, -1)
     # A decision at state t governs transition t -> t+1. There is no next
@@ -104,7 +106,7 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
     entity_visible = np.concatenate([np.ones((len(joint), robots), dtype=bool), moving_visible], axis=1)
     if observer:
         # Viewer-only truth: never fed to a policy or written into the shared map.
-        ordinary_occupancy = np.repeat(data["static_map"][None].astype(bool), len(joint), axis=0)
+        ordinary_occupancy = static_history.astype(bool).copy()
         for state, cells in enumerate(data["dynamic"]):
             stationary = cells[~moving[state]]
             ordinary_occupancy[state, stationary[:, 0], stationary[:, 1]] = True
@@ -120,7 +122,7 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
         def __init__(self):
             self.grid_config = GridConfig(size=summary["size"], num_agents=joint.shape[1],
                                           density=0, on_target="restart")
-            self.grid = SimpleNamespace(obstacles=data["static_map"].copy())
+            self.grid = SimpleNamespace(obstacles=static_history[0].copy())
             self.action_space = gym.spaces.Discrete(1)
             self.observation_space = gym.spaces.Discrete(1)
             self.seek(0)
@@ -265,7 +267,7 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
     monitor.shared_history = timeline(data["known"], np.full_like(data["known"][0], 255))
     initial_occupancy = np.zeros_like(ordinary_occupancy[0])
     if observer:
-        initial_occupancy = data["static_map"].astype(bool).copy()
+        initial_occupancy = static_history[0].astype(bool).copy()
         initial_dynamic = data["dynamic"][0]
         initial_occupancy[initial_dynamic[:, 0], initial_dynamic[:, 1]] = True
     monitor.ordinary_history = timeline(ordinary_occupancy, initial_occupancy)
