@@ -27,7 +27,8 @@ the next dynamic obstacle and receives its own short target path.
 
 The GIF is exported at **1.5× the normal Pogema rate**: **0.187 seconds per
 step**, with every step retained. The compact **280×280** version lasts about
-**50 seconds**, including the intro and final hold.
+**50 seconds**, including the intro and final hold, then stops on its final
+state rather than restarting.
 
 [Native animated SVG](media/successful-exploration.svg) ·
 [Run metadata](media/successful-exploration.json).
