@@ -79,7 +79,9 @@ def test_verified_terminal_map_renders_success_gif(tmp_path, observer):
     assert report["decoded_gif_frames"] == 4  # Intro plus three recorded states.
     assert report["backend"] == "pogema.animation.AnimationMonitor"
     assert report["native_history_matches_recording"] and report["shared_map_replay_matches_recording"]
-    assert report["gif_duration_ms"] == renderer.INTRO_MS + 2 * renderer.STEP_MS + renderer.FINAL_HOLD_MS
+    requested = [renderer.INTRO_MS, renderer.STEP_MS, renderer.STEP_MS, renderer.FINAL_HOLD_MS]
+    assert report["gif_duration_ms"] == sum(renderer.gif_frame_durations(requested))
+    assert abs(report["gif_duration_ms"] - sum(requested)) <= 10
     assert report["gif_sha256"] == hashlib.sha256((output / "vorl-explore.gif").read_bytes()).hexdigest()
     assert report["svg_sha256"] == hashlib.sha256((output / "vorl-explore.svg").read_bytes()).hexdigest()
     if observer:
@@ -326,16 +328,17 @@ def test_observer_intro_keeps_full_terrain_but_no_motion(tmp_path):
     assert all(layers.index(square) < layers.index(tile) for tile in fog)
 
 
-def test_playback_uses_normal_pogema_speed(tmp_path):
+def test_playback_uses_demo_speed_with_frame_aligned_holds(tmp_path):
     pytest.importorskip("pogema")
     from pogema.animation import AnimationMonitor, AnimationSettings
     _, data, summary = recording_fixture(tmp_path)
     monitor = renderer.make_monitor(data, summary, renderer.validate_recording(data, summary, 3))
     assert isinstance(monitor, AnimationMonitor)
-    assert renderer.STEP_MS == round(1000 * AnimationSettings().time_scale) == 280
-    assert monitor.svg_settings.time_scale == AnimationSettings().time_scale
-    assert renderer.INTRO_MS % renderer.STEP_MS == 0
-    assert renderer.FINAL_HOLD_MS % renderer.STEP_MS == 0
+    assert AnimationSettings().time_scale == 0.28  # Pogema 1.1.1 default.
+    assert renderer.STEP_MS == 187
+    assert monitor.svg_settings.time_scale == renderer.STEP_MS / 1000
+    assert renderer.INTRO_MS == 4 * renderer.STEP_MS
+    assert renderer.FINAL_HOLD_MS == 8 * renderer.STEP_MS
 
 
 def test_svg_only_does_not_need_cairo(tmp_path, monkeypatch):

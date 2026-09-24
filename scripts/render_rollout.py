@@ -24,7 +24,24 @@ DYNAMIC_COLOR = "#737373"
 DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
 # The demo is exported at 1.5x the Pogema 1.1.1 default (0.28 s/step).
-STEP_MS, INTRO_MS, FINAL_HOLD_MS = 187, 1120, 2240
+# Keep the intro and final hold as whole animation frames in the native SVG.
+STEP_MS, INTRO_MS, FINAL_HOLD_MS = 187, 748, 1496
+
+
+def gif_frame_durations(durations):
+    """Quantize GIF delays to centiseconds without accumulating time drift.
+
+    GIF delays are integral centiseconds. Error diffusion preserves the total
+    requested playback time, using adjacent 10 ms values (for example 180 and
+    190 ms for a nominal 187 ms step) rather than truncating every frame.
+    """
+    carry, quantized = 0.0, []
+    for duration in durations:
+        requested = duration / 10 + carry
+        centiseconds = int(np.floor(requested + 0.5))
+        quantized.append(centiseconds * 10)
+        carry = requested - centiseconds
+    return quantized
 
 
 def validate_recording(data, summary, radius):
@@ -390,7 +407,10 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
                 frames.append(source.convert("RGB"))
             if frame_number % 50 == 0 or frame_number == len(display_indices):
                 print(f"Rendered Pogema frame {frame_number}/{len(display_indices)}", flush=True)
-        durations = [INTRO_MS] + [(b - a) * STEP_MS for a, b in zip(indices, indices[1:])] + [FINAL_HOLD_MS]
+        requested_durations = ([INTRO_MS] +
+                               [(b - a) * STEP_MS for a, b in zip(indices, indices[1:])] +
+                               [FINAL_HOLD_MS])
+        durations = gif_frame_durations(requested_durations)
         gif = output / "vorl-explore.gif"
         frames[0].save(gif, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
         for name, index in [("intro", 0), ("first", 1), ("middle", len(frames) // 2), ("last", len(frames) - 1)]:
@@ -404,6 +424,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
         report.update(gif_source="Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only",
                       rendered_state_indices=indices, decoded_gif_frames=actual_frames,
                       size=frames[0].size, gif_duration_ms=duration, step_duration_ms=STEP_MS,
+                      nominal_duration_ms=sum(requested_durations),
                       intro_ms=INTRO_MS, final_hold_ms=FINAL_HOLD_MS, cairosvg_version=version("CairoSVG"),
                       pillow_version=version("Pillow"), gif_sha256=hashlib.sha256(gif.read_bytes()).hexdigest())
     (output / "render-check.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -415,7 +436,7 @@ if __name__ == "__main__":
     parser.add_argument("--run", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--stride", type=int, default=1, help="GIF sampling stride; SVG keeps every state")
-    parser.add_argument("--width", type=int, default=560, help="GIF width in pixels")
+    parser.add_argument("--width", type=int, default=280, help="GIF width in pixels")
     parser.add_argument("--svg-only", action="store_true", help="Export native SVG without CairoSVG")
     parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
     parser.add_argument("--observer", action="store_true", help="Show full terrain under a 15%% gray unknown overlay; display only")

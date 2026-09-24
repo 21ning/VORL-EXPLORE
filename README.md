@@ -13,7 +13,7 @@ optional self-supervised gate updates.
 ## Demo
 
 The displayed successful rollout uses a **40×40 grid, 4 robots, 12 moving
-obstacles, and seed 1012**. Exploration completes in **182 steps**, with no
+obstacles, and seed 1015**. Exploration completes in **254 steps**, with no
 remaining frontiers. It is rendered with **Pogema 1.1.1 AnimationMonitor** in
 observer view: the original terrain remains visible, while cells not yet observed
 by the team receive a 15% gray overlay. This display-only overlay does not change
@@ -26,8 +26,8 @@ After arrival, a different eligible ordinary obstacle is randomly selected as
 the next dynamic obstacle and receives its own short target path.
 
 The GIF is exported at **1.5× the normal Pogema rate**: **0.187 seconds per
-step**, with every step retained. It lasts about **36 seconds**, including the
-intro and final hold.
+step**, with every step retained. The compact **280×280** version lasts about
+**50 seconds**, including the intro and final hold.
 
 [Native animated SVG](media/successful-exploration.svg) ·
 [Run metadata](media/successful-exploration.json).
@@ -37,9 +37,9 @@ This selected example is not a success-rate benchmark.
 <summary>Reproduce this animation after installation</summary>
 
 ```bash
-python scripts/run_vorl.py --seed 1012 --dynamic-obstacles 12 --horizon 640 --threads 1 --output runs/success-demo
+python scripts/run_vorl.py --seed 1015 --dynamic-obstacles 12 --horizon 640 --threads 1 --output runs/success-demo
 python scripts/verify_rollout.py --run runs/success-demo
-.venv-animation/bin/python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --observer --require-success --width 560
+.venv-animation/bin/python scripts/render_rollout.py --run runs/success-demo --output runs/success-demo/render --observer --require-success --width 280
 ```
 
 Set up the separate animation environment below before the last command.

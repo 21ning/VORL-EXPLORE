@@ -36,8 +36,9 @@ def test_seeded_map_and_dynamic_obstacle_speed():
         repeated.step([0, 0, 0])
         assert first.dynamic_positions == repeated.dynamic_positions
         displacement = [abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(old, first.dynamic_positions)]
-        for distance, was_active, is_active in zip(displacement, old_active, first.dynamic_active):
-            role_replaced = not was_active and is_active
+        for distance, was_active, is_active, replaced in zip(
+                displacement, old_active, first.dynamic_active, first.dynamic_replaced):
+            role_replaced = replaced or (not was_active and is_active)
             assert distance <= (0 if step % 2 == 0 else 1) or role_replaced
 
 
