@@ -111,12 +111,6 @@ checkpoints/   Lightweight warm-start gate
 tests/         Unit and command-line tests
 ```
 
-## Acknowledgements
-
-EPOM is based on [When to Switch](https://github.com/Cognitive-AI-Systems/when-to-switch)
-and uses Sample Factory. See [third-party notices](THIRD_PARTY_NOTICES.md) for
-attribution and license terms.
-
 ## Citation
 
 If this repository is useful to your research, please cite the paper:
