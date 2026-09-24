@@ -4,27 +4,11 @@
 
 **A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments**
 
-VORL-EXPLORE couples frontier assignment and motion execution through a shared
-execution-fidelity score. The score adjusts a Voronoi-based frontier objective
-and controls a hysteresis switch between A* planning and an EPOM reactive policy.
-The implementation includes dynamic grid environments, recovery actions and
-optional self-supervised gate updates.
-
-## Citation
-
-If this repository is useful to your research, please cite the paper:
-
-```bibtex
-@article{liu2026vorl,
-  title   = {VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments},
-  author  = {Liu, Ning and Shen, Sen and Li, Zheng and Liu, Sheng and Han, Dongkun and Lyu, Shangke and Braunl, Thomas},
-  journal = {arXiv preprint arXiv:2603.07973},
-  year    = {2026},
-  month   = mar,
-  doi     = {10.48550/arXiv.2603.07973},
-  url     = {https://arxiv.org/abs/2603.07973}
-}
-```
+VORL-EXPLORE couples frontier allocation and motion execution through a shared
+execution-fidelity signal. The signal modulates a Voronoi-based frontier
+objective and governs hysteresis-based arbitration between global A* planning
+and an EPOM reactive policy. The codebase provides dynamic-grid environments,
+trajectory verification, fidelity-gate adaptation and Pogema-based rendering.
 
 ## Installation
 
@@ -80,7 +64,7 @@ incomplete.
 # Check a recorded frozen-gate run.
 python scripts/verify_rollout.py --run runs/demo
 
-# Fit a new warm-start gate; this does not train the EPOM policy.
+# Fit a fidelity-gate warm start.
 python scripts/warmstart_gate.py --output runs/warmstart --workers 2 --threads 2
 
 # Run unit tests; no downloaded policy is required.
@@ -103,19 +87,16 @@ python3.10 -m venv .venv-animation
 .venv-animation/bin/python scripts/render_rollout.py --run runs/demo --output runs/demo/render
 ```
 
-Outputs: native `vorl-explore.svg`, a GIF of native Pogema frames, and
-`render-check.json`. `--svg-only` works with an existing Pogema 1.1.1 installation
-without CairoSVG. `--require-success` rejects incomplete runs. The renderer
-checks trajectory/config hashes and replays shared sensing before drawing.
-It replays the recorded VORL simulator states; it does not replace the simulator
-with Pogema physics. No policy weights or PyTorch are needed for animation.
+Outputs include native `vorl-explore.svg`, a GIF of Pogema frames and
+`render-check.json`. `--svg-only` supports an existing Pogema 1.1.1 installation
+without CairoSVG. `--require-success` accepts only completed trajectories. The
+renderer validates trajectory and configuration hashes, then replays shared
+sensing to produce the visualization.
 
-Add `--observer` for a full-map presentation: original terrain stays visible
-under a 15% gray overlay in unexplored regions. An obstacle is gray while it has
-an assigned trip, then uses the ordinary obstacle style after arrival; another
-eligible ordinary obstacle is then selected to move. Each trip contains at most
-five grid moves. This viewer-only mode does not change the agents' observations
-or their recorded shared map.
+Add `--observer` for the paper-style full-map presentation: terrain remains
+visible beneath a 15% gray overlay in unexplored regions. Dynamic obstacles are
+shown as gray squares during assigned trips and revert to ordinary obstacle style
+at their targets; each trip contains at most five grid moves.
 
 Renderer tests: install `pytest==8.4.2` in the animation environment and run
 `.venv-animation/bin/python -m pytest tests/test_render.py`.
@@ -130,14 +111,24 @@ checkpoints/   Lightweight warm-start gate
 tests/         Unit and command-line tests
 ```
 
-## Implementation scope
-
-This is a runnable method-level implementation using an upstream EPOM checkpoint
-and a separately fitted fidelity gate. It does not reproduce the paper's
-from-scratch policy training or benchmark tables. Apart from the illustrative
-demo above, this release contains code and usage documentation, not benchmark
-results, ablation suites or Gazebo integration.
+## Acknowledgements
 
 EPOM is based on [When to Switch](https://github.com/Cognitive-AI-Systems/when-to-switch)
 and uses Sample Factory. See [third-party notices](THIRD_PARTY_NOTICES.md) for
 attribution and license terms.
+
+## Citation
+
+If this repository is useful to your research, please cite the paper:
+
+```bibtex
+@article{liu2026vorl,
+  title   = {VORL-EXPLORE: A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments},
+  author  = {Liu, Ning and Shen, Sen and Li, Zheng and Liu, Sheng and Han, Dongkun and Lyu, Shangke and Braunl, Thomas},
+  journal = {arXiv preprint arXiv:2603.07973},
+  year    = {2026},
+  month   = mar,
+  doi     = {10.48550/arXiv.2603.07973},
+  url     = {https://arxiv.org/abs/2603.07973}
+}
+```
