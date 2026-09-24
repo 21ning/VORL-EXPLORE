@@ -292,10 +292,9 @@
   "gif_duration_ms": 49740,
   "step_duration_ms": 187,
   "nominal_duration_ms": 49742,
-  "gif_loops": false,
   "intro_ms": 748,
   "final_hold_ms": 1496,
   "cairosvg_version": "2.7.1",
   "pillow_version": "12.3.0",
-  "gif_sha256": "a45e68dee853bc26fa255521a424ccb805e922641bf023a04b0b5603d7f26f1a"
+  "gif_sha256": "4eca25a549cbcd43b6c6e76ab738b4fc7942961c38336a3cfe1b7893b759aace"
 }

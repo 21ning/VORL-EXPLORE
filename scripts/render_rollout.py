@@ -412,9 +412,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
                                [FINAL_HOLD_MS])
         durations = gif_frame_durations(requested_durations)
         gif = output / "vorl-explore.gif"
-        # Omit the GIF loop extension: playback ends on the final hold instead
-        # of restarting the completed exploration from its initial frame.
-        frames[0].save(gif, save_all=True, append_images=frames[1:], duration=durations, disposal=2)
+        frames[0].save(gif, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
         for name, index in [("intro", 0), ("first", 1), ("middle", len(frames) // 2), ("last", len(frames) - 1)]:
             frames[index].save(output / f"{name}.png")
         with Image.open(gif) as decoded:
@@ -426,7 +424,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
         report.update(gif_source="Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only",
                       rendered_state_indices=indices, decoded_gif_frames=actual_frames,
                       size=frames[0].size, gif_duration_ms=duration, step_duration_ms=STEP_MS,
-                      nominal_duration_ms=sum(requested_durations), gif_loops=False,
+                      nominal_duration_ms=sum(requested_durations),
                       intro_ms=INTRO_MS, final_hold_ms=FINAL_HOLD_MS, cairosvg_version=version("CairoSVG"),
                       pillow_version=version("Pillow"), gif_sha256=hashlib.sha256(gif.read_bytes()).hexdigest())
     (output / "render-check.json").write_text(json.dumps(report, indent=2) + "\n")

@@ -82,10 +82,6 @@ def test_verified_terminal_map_renders_success_gif(tmp_path, observer):
     requested = [renderer.INTRO_MS, renderer.STEP_MS, renderer.STEP_MS, renderer.FINAL_HOLD_MS]
     assert report["gif_duration_ms"] == sum(renderer.gif_frame_durations(requested))
     assert abs(report["gif_duration_ms"] - sum(requested)) <= 10
-    assert not report["gif_loops"]
-    from PIL import Image
-    with Image.open(output / "vorl-explore.gif") as gif:
-        assert "loop" not in gif.info
     assert report["gif_sha256"] == hashlib.sha256((output / "vorl-explore.gif").read_bytes()).hexdigest()
     assert report["svg_sha256"] == hashlib.sha256((output / "vorl-explore.svg").read_bytes()).hexdigest()
     if observer:
