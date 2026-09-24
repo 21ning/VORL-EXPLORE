@@ -415,7 +415,7 @@ if __name__ == "__main__":
     parser.add_argument("--run", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--stride", type=int, default=1, help="GIF sampling stride; SVG keeps every state")
-    parser.add_argument("--width", type=int, default=720, help="GIF width in pixels")
+    parser.add_argument("--width", type=int, default=560, help="GIF width in pixels")
     parser.add_argument("--svg-only", action="store_true", help="Export native SVG without CairoSVG")
     parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
     parser.add_argument("--observer", action="store_true", help="Show full terrain under a 15%% gray unknown overlay; display only")
