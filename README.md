@@ -12,10 +12,9 @@ optional self-supervised gate updates.
 
 ## Demo
 
-The displayed successful rollout is the shortest completed run among ten fixed
-evaluation seeds: **40×40 grid, 4 robots, 12 moving obstacles, seed 1010**.
-Exploration completes in **163 steps**, with no remaining frontiers and 100%
-observed cells. It is rendered with **Pogema 1.1.1 AnimationMonitor** in
+The displayed successful rollout uses a **40×40 grid, 4 robots, 12 moving
+obstacles, and seed 1010**. Exploration completes in **432 steps**, with no
+remaining frontiers. It is rendered with **Pogema 1.1.1 AnimationMonitor** in
 observer view: the original terrain remains visible, while cells not yet observed
 by the team receive a 15% gray overlay. This display-only overlay does not change
 the agents' recorded shared map or policy inputs. Grid lines remain visible;
@@ -26,8 +25,9 @@ target is sampled from reachable free cells and is at most five grid moves away.
 After arrival, a different eligible ordinary obstacle is randomly selected as
 the next dynamic obstacle and receives its own short target path.
 
-Normal Pogema playback: **0.28 seconds per step**, with every step retained.
-The full GIF lasts **49 seconds**, including the intro and final hold.
+The GIF is exported at **1.5× the normal Pogema rate**: **0.187 seconds per
+step**, with every step retained. It lasts about **84 seconds**, including the
+intro and final hold.
 
 [Native animated SVG](media/successful-exploration.svg) ·
 [Run metadata](media/successful-exploration.json).

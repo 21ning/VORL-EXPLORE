@@ -31,11 +31,14 @@ def test_seeded_map_and_dynamic_obstacle_speed():
     assert first.positions == repeated.positions
     for step in range(10):
         old = first.dynamic_positions.copy()
+        old_active = first.dynamic_active.copy()
         first.step([0, 0, 0])
         repeated.step([0, 0, 0])
         assert first.dynamic_positions == repeated.dynamic_positions
         displacement = [abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(old, first.dynamic_positions)]
-        assert max(displacement) <= (0 if step % 2 == 0 else 1)
+        for distance, was_active, is_active in zip(displacement, old_active, first.dynamic_active):
+            role_replaced = not was_active and is_active
+            assert distance <= (0 if step % 2 == 0 else 1) or role_replaced
 
 
 def test_dynamic_trips_are_short_and_inactive_on_arrival():

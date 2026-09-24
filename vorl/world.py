@@ -80,6 +80,7 @@ class GridWorld:
         self.dynamic_paths = [[] for _ in self.dynamic_positions]
         self.dynamic_active = [False] * dynamic_obstacles
         self.dynamic_replacement_pending = [False] * dynamic_obstacles
+        self.dynamic_replaced = [False] * dynamic_obstacles
         self.dynamic_waits = [0] * dynamic_obstacles
         self.shared_map = np.full((size, size), UNKNOWN, dtype=np.uint8)
         self.seen = np.zeros((robots, size, size), dtype=bool)
@@ -128,7 +129,7 @@ class GridWorld:
                 self.dynamic_waits[i] = 0
             path = self.dynamic_paths[i]
             nxt = path[1] if len(path) > 1 else position
-            if nxt != position and nxt not in occupied:
+            if nxt != position and nxt not in occupied and self.static_map[nxt] == 0:
                 occupied.remove(position)
                 occupied.add(nxt)
                 self.dynamic_positions[i] = nxt
@@ -169,6 +170,7 @@ class GridWorld:
                 self.dynamic_paths[index] = path
                 self.dynamic_active[index] = True
                 self.dynamic_replacement_pending[index] = False
+                self.dynamic_replaced[index] = True
                 self.dynamic_waits[index] = 0
                 occupied.add(source)
                 return
@@ -176,6 +178,7 @@ class GridWorld:
         occupied.add(arrived)
 
     def step(self, actions):
+        self.dynamic_replaced = [False] * len(self.dynamic_positions)
         previous = self.positions.copy()
         self.positions, interventions = resolve_motion(self.obstacles(), self.positions, actions)
         self.environment_interventions += int(interventions.sum())
@@ -187,7 +190,8 @@ class GridWorld:
             self.visited[i][position] = True
         assert len(set(self.positions + self.dynamic_positions)) == len(self.positions) + len(self.dynamic_positions)
         assert all(self.static_map[p] == 0 for p in self.positions)
-        assert all(self.static_map[p] == 0 for p, active in zip(self.dynamic_positions, self.dynamic_active) if active)
+        active_static = [p for p, active in zip(self.dynamic_positions, self.dynamic_active) if active and self.static_map[p] != 0]
+        assert not active_static, (self.time, active_static, self.dynamic_positions, self.dynamic_active)
         assert all(self.static_map[p] == 1 for p, active, pending in zip(
             self.dynamic_positions, self.dynamic_active, self.dynamic_replacement_pending
         ) if not active and pending)

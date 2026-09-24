@@ -23,8 +23,8 @@ OBSERVER_UNKNOWN_OPACITY = 0.15
 DYNAMIC_COLOR = "#737373"
 DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
-# Pogema 1.1.1 AnimationSettings.time_scale is 0.28 seconds per step.
-STEP_MS, INTRO_MS, FINAL_HOLD_MS = 280, 1120, 2240
+# The demo is exported at 1.5x the Pogema 1.1.1 default (0.28 s/step).
+STEP_MS, INTRO_MS, FINAL_HOLD_MS = 187, 1120, 2240
 
 
 def validate_recording(data, summary, radius):
@@ -41,6 +41,8 @@ def validate_recording(data, summary, radius):
             raise ValueError(f"Invalid {key} shape or dtype")
     if "dynamic_active" in data and data["dynamic_active"].shape != (states, moving):
         raise ValueError("Invalid recorded dynamic trip state")
+    if "dynamic_replaced" in data and data["dynamic_replaced"].shape != (states, moving):
+        raise ValueError("Invalid recorded dynamic replacement state")
     static_history = data.get("static", np.repeat(data["static_map"][None], states, axis=0))
     if static_history.shape != (states, size, size) or not np.isin(static_history, [0, 1]).all():
         raise ValueError("Invalid static map")
@@ -51,8 +53,17 @@ def validate_recording(data, summary, radius):
         raise ValueError("Recorded robot intersects a static obstacle")
     if any(len({tuple(p) for p in state}) != robots + moving for state in joint):
         raise ValueError("Recorded entities overlap")
-    if np.any(np.abs(np.diff(joint, axis=0)).sum(axis=-1) > 1):
-        raise ValueError("Recorded entity moves more than one grid cell")
+    if np.any(np.abs(np.diff(data["positions"], axis=0)).sum(axis=-1) > 1):
+        raise ValueError("Recorded robot moves more than one grid cell")
+    dynamic_motion = np.abs(np.diff(data["dynamic"], axis=0)).sum(axis=-1)
+    if "dynamic_replaced" in data:
+        role_replaced = np.asarray(data["dynamic_replaced"][1:], dtype=bool)
+    elif "dynamic_active" in data:
+        role_replaced = ~np.asarray(data["dynamic_active"][:-1], dtype=bool) & np.asarray(data["dynamic_active"][1:], dtype=bool)
+    else:
+        role_replaced = np.zeros_like(dynamic_motion, dtype=bool)
+    if np.any((dynamic_motion > 1) & ~role_replaced):
+        raise ValueError("Recorded dynamic obstacle moves more than one grid cell outside a role replacement")
     goals = data["goals"]
     valid = np.all((goals >= 0) & (goals < size), axis=-1)
     if not np.all(valid | np.all(goals == -1, axis=-1)):
@@ -350,7 +361,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "dynamic_obstacle_style": "gray square for an assigned obstacle trip; ordinary occupancy after arrival",
               "moving_obstacle_color": DYNAMIC_COLOR, "moving_obstacle_opacity": DYNAMIC_OPACITY,
               "motion_indicator": "recorded dynamic trip state; legacy recordings use position changes",
-              "playback_speed": "1x Pogema 1.1.1 default: 0.28 seconds per step",
+              "playback_speed": "1.5x Pogema 1.1.1 default: 0.187 seconds per step",
               "pre_observation_intro": "initial robot poses on an all-unknown map; not a rollout step",
               "trajectory_states": len(data["known"]), "native_history_matches_recording": True,
               "shared_map_replay_matches_recording": True, "native_timeline_states": len(monitor.dones_history),

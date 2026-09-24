@@ -32,8 +32,10 @@ def verify(run, gate_path):
         positions, dynamic, known, actions = data["positions"], data["dynamic"], data["known"], data["actions"]
         static_history = data["static"] if "static" in data else np.repeat(data["static_map"][None], len(positions), axis=0)
         dynamic_active = data["dynamic_active"] if "dynamic_active" in data else np.ones(dynamic.shape[:2], dtype=bool)
+        dynamic_replaced = data["dynamic_replaced"] if "dynamic_replaced" in data else np.zeros(dynamic.shape[:2], dtype=bool)
         assert static_history.shape == known.shape
         assert dynamic_active.shape == dynamic.shape[:2]
+        assert dynamic_replaced.shape == dynamic.shape[:2]
         assert len(positions) == len(actions) + 1 == summary["steps"] + 1
         assert np.all(np.abs(np.diff(positions, axis=0)).sum(axis=-1) <= 1)
         assert np.all(np.diff(np.count_nonzero(known != 255, axis=(1, 2))) >= 0)
@@ -44,7 +46,9 @@ def verify(run, gate_path):
             assert all(static_history[t][tuple(p)] == 0 for p, active in zip(dynamic[t], dynamic_active[t]) if active)
             if t > 0:
                 dynamic_motion = np.abs(dynamic[t] - dynamic[t - 1]).sum(axis=-1)
-                assert np.all(dynamic_motion <= (1 if t % 2 == 0 else 0))
+                role_replaced = dynamic_replaced[t] | (~dynamic_active[t - 1] & dynamic_active[t])
+                allowed = (dynamic_motion <= (1 if t % 2 == 0 else 0)) | role_replaced
+                assert np.all(allowed), (t, dynamic_motion[~allowed], dynamic_active[t - 1][~allowed], dynamic_active[t][~allowed])
                 for i, action in enumerate(actions[t - 1]):
                     displacement = tuple(positions[t, i] - positions[t - 1, i])
                     assert displacement in ((0, 0), MOVES[int(action)])

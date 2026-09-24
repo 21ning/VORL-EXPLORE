@@ -50,7 +50,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
     sensor = world.observe()
     controller = Controller(sensor, policy, config, gate, seed=seed, adapt=adapt)
     initial_gate_weights, initial_gate_bias = controller.model.weights.copy(), controller.model.bias.copy()
-    records = {name: [] for name in ("static", "known", "positions", "dynamic", "dynamic_active", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
+    records = {name: [] for name in ("static", "known", "positions", "dynamic", "dynamic_active", "dynamic_replaced", "goals", "fidelity", "modes", "actions", "features", "planner_selected", "planner_feasible")}
     delayed = deque(maxlen=config["history_window"])
     training_features, training_quality = [], []
     start = time.monotonic()
@@ -64,6 +64,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
             records["positions"].append(sensor.positions.copy())
             records["dynamic"].append(world.dynamic_positions.copy())
             records["dynamic_active"].append(world.dynamic_active.copy())
+            records["dynamic_replaced"].append(world.dynamic_replaced.copy())
             if not frontiers(sensor.shared_map):
                 outcome = "no_frontiers"
                 break
@@ -111,6 +112,7 @@ def run_episode(*, config, policy_dir, gate, seed, size, robots, dynamic_obstacl
         "positions": np.asarray(records["positions"], dtype=np.int16),
         "dynamic": np.asarray(records["dynamic"], dtype=np.int16).reshape(len(records["dynamic"]), dynamic_obstacles, 2),
         "dynamic_active": np.asarray(records["dynamic_active"], dtype=bool).reshape(len(records["dynamic_active"]), dynamic_obstacles),
+        "dynamic_replaced": np.asarray(records["dynamic_replaced"], dtype=bool).reshape(len(records["dynamic_replaced"]), dynamic_obstacles),
         "goals": np.asarray(records["goals"], dtype=np.int16).reshape(-1, robots, 2),
         "fidelity": np.asarray(records["fidelity"], dtype=np.float32).reshape(-1, robots),
         "modes": np.asarray(records["modes"], dtype=np.uint8).reshape(-1, robots),
