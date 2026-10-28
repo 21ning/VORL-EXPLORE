@@ -4,6 +4,14 @@
 
 **A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments**
 
+[Read the paper on arXiv (PDF, version 2)](https://arxiv.org/pdf/2603.07973v2).
+
+The animation shows a 40×40 grid with 4 robots and 8 dynamic obstacles
+(seed 1005). After 186 steps, no exploration frontiers remained and 1,599 of
+1,600 cells had been observed (99.9375%). The full terrain is shown for the
+viewer under a 55% gray overlay on unexplored cells; the robots do not receive
+the hidden terrain information.
+
 VORL-EXPLORE couples frontier allocation and motion execution through a shared
 execution-fidelity signal. The signal modulates a Voronoi-based frontier
 objective and governs hysteresis-based arbitration between global A* planning
@@ -94,7 +102,7 @@ renderer validates trajectory and configuration hashes, then replays shared
 sensing to produce the visualization.
 
 Add `--observer` for the paper-style full-map presentation: terrain remains
-visible beneath a 15% gray overlay in unexplored regions. Dynamic obstacles are
+visible beneath a 55% gray overlay in unexplored regions. Dynamic obstacles are
 shown as gray squares during assigned trips and revert to ordinary obstacle style
 at their targets; each trip contains at most five grid moves.
 
