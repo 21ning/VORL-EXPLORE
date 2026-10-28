@@ -1,5 +1,7 @@
 # VORL-EXPLORE
 
+![Successful VORL-EXPLORE rollout](media/successful-exploration.gif)
+
 **A Hybrid Learning Planning Approach to Multi-Robot Exploration in Dynamic Environments**
 
 [Read the paper on arXiv (PDF, version 2)](https://arxiv.org/pdf/2603.07973v2).
