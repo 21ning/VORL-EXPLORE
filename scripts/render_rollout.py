@@ -23,6 +23,9 @@ OBSERVER_UNKNOWN_OPACITY = 0.55
 DYNAMIC_COLOR = "#737373"
 DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
+GRID_LINE_COLOR = "#666666"
+GRID_LINE_OPACITY = 0.85
+GRID_LINE_WIDTH = 8
 # The demo is exported at 1.5x the Pogema 1.1.1 default (0.28 s/step).
 # Keep the intro and final hold as whole animation frames in the native SVG.
 STEP_MS, INTRO_MS, FINAL_HOLD_MS = 187, 748, 1496
@@ -215,15 +218,15 @@ def make_monitor(data, summary, dynamic_visible, *, observer=False):
                                    height=size * cfg.scale_size, fill="#ffffff")
             # Grid lines stay above the mask in both display modes. Shared view
             # hides unknown geometry; observer view tints the original geometry.
-            extent, line_width = size * cfg.scale_size, 4
+            extent, line_width = size * cfg.scale_size, GRID_LINE_WIDTH
             grid = []
             for line in range(size + 1):
                 offset = line * cfg.scale_size - line_width / 2
                 grid.extend([
                     Rectangle(x=offset, y=0, width=line_width, height=extent,
-                              fill=GRID_COLOR, opacity=0.65, data_layer="grid"),
+                              fill=GRID_LINE_COLOR, opacity=GRID_LINE_OPACITY, data_layer="grid"),
                     Rectangle(x=0, y=offset, width=extent, height=line_width,
-                              fill=GRID_COLOR, opacity=0.65, data_layer="grid"),
+                              fill=GRID_LINE_COLOR, opacity=GRID_LINE_OPACITY, data_layer="grid"),
                 ])
             return [background] + blocks + fog + grid
 
