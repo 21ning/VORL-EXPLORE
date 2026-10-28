@@ -24,7 +24,7 @@
   "profile": "paper_formula_reconstruction_upstream_epom",
   "success_no_frontiers": true,
   "final_frontier_count": 0,
-  "svg_sha256": "ecd6a202e035a6331f3f39e22e7c0e1ad86202a554cadccf6870cf28d1d341c8",
+  "svg_sha256": "67e60f1ca8a4ab4fafadcdc5133fdd6b08324c594c7eb5154b5ad8eea458e7dc",
   "recorded_shared_map_unchanged": true,
   "gif_source": "Pogema static SVG frames rasterized with CairoSVG; Pillow encodes GIF only",
   "rendered_state_indices": [
@@ -253,5 +253,5 @@
   "final_hold_ms": 1496,
   "cairosvg_version": "2.7.1",
   "pillow_version": "12.3.0",
-  "gif_sha256": "0f05865fd33852c99e8b79e8ffc80571245192f93973359c92da9f669184fe29"
+  "gif_sha256": "74fc04953dbf274495fb29d376e3044c489fa23c478d41ac927cd110433e2cf3"
 }
