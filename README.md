@@ -7,8 +7,8 @@
 [Read the paper on arXiv (PDF, version 2)](https://arxiv.org/pdf/2603.07973v2).
 
 The animation shows a 40×40 grid with 4 robots and 8 dynamic obstacles
-(seed 1005). After 186 steps, no exploration frontiers remained and 1,599 of
-1,600 cells had been observed (99.9375%). The full terrain is shown for the
+(seed 1019). After 211 steps, no exploration frontiers remained and all
+1,600 cells had been observed (100%). The full terrain is shown for the
 viewer under a 55% gray overlay on unexplored cells; the robots do not receive
 the hidden terrain information.
 
