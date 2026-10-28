@@ -144,6 +144,10 @@ def test_native_frames_start_unknown_and_reveal_only_recorded_cells(tmp_path):
         layers = list(root)
         grid = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "grid"]
         assert len(grid) == 2 * (summary["size"] + 1)
+        assert all(line.get("fill") == renderer.GRID_LINE_COLOR for line in grid)
+        assert all(float(line.get("opacity")) == renderer.GRID_LINE_OPACITY for line in grid)
+        assert all(float(line.get("width")) == renderer.GRID_LINE_WIDTH or
+                   float(line.get("height")) == renderer.GRID_LINE_WIDTH for line in grid)
         assert all(layers.index(line) > layers.index(tile) for line in grid for tile in fog)
         occupancy = [r for r in root.findall("s:rect", ns) if r.get("data-layer") == "occupancy"]
         assert all(r.get("width") == r.get("height") == "100" and r.get("rx") == "0" for r in occupancy)
