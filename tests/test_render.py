@@ -85,7 +85,7 @@ def test_verified_terminal_map_renders_success_gif(tmp_path, observer):
     assert report["gif_sha256"] == hashlib.sha256((output / "vorl-explore.gif").read_bytes()).hexdigest()
     assert report["svg_sha256"] == hashlib.sha256((output / "vorl-explore.svg").read_bytes()).hexdigest()
     if observer:
-        assert report["unknown_mask_opacity"] == 0.15
+        assert report["unknown_mask_opacity"] == 0.55
         assert report["recorded_shared_map_unchanged"]
 
 
@@ -279,7 +279,7 @@ def test_native_rectangle_motion_uses_xy_not_circle_centers():
         assert animations[axis].get("keyTimes") == expected.attributes["keyTimes"]
 
 
-def test_observer_shows_unknown_geometry_under_15_percent_gray():
+def test_observer_shows_unknown_geometry_under_55_percent_gray():
     pytest.importorskip("pogema")
     cairo = pytest.importorskip("cairosvg")
     from io import BytesIO
@@ -295,17 +295,17 @@ def test_observer_shows_unknown_geometry_under_15_percent_gray():
         layers = list(root)
         fog = [shape for shape in root if shape.get("data-layer") == "unknown-mask"]
         squares = [shape for shape in root if shape.get("data-layer") == "moving-obstacle"]
-        assert all(shape.get("fill") == "#808080" and float(shape.get("opacity")) == 0.15 for shape in fog)
+        assert all(shape.get("fill") == "#808080" and float(shape.get("opacity")) == 0.55 for shape in fog)
         assert all(layers.index(square) < layers.index(tile) for square in squares for tile in fog)
         png = cairo.svg2png(bytestring=svg.encode(), output_width=500, output_height=500)
         with Image.open(BytesIO(png)) as image:
             frame = image.convert("RGB")
-            for pixel, expected in [((450, 450), (131, 156, 167)),  # Unknown static wall.
-                                    ((450, 150), (236, 236, 236)),  # Unknown floor.
+            for pixel, expected in [((450, 450), (130, 143, 149)),  # Unknown static wall.
+                                    ((450, 150), (185, 185, 185)),  # Unknown floor.
                                     ((150, 150), (255, 255, 255))]:  # Known free space.
                 assert np.max(np.abs(np.array(frame.getpixel(pixel)) - expected)) <= 1
             row, col = data["dynamic"][state, 0]
-            expected = (117, 117, 117) if moving else (131, 156, 167)
+            expected = (122, 122, 122) if moving else (130, 143, 149)
             assert np.max(np.abs(np.array(frame.getpixel((col * 100 + 50, row * 100 + 50))) - expected)) <= 1
     assert np.array_equal(data["known"], before)
     assert np.array_equal(monitor.shared_history[monitor.recorded_offset:monitor.recorded_offset + 5], before)
