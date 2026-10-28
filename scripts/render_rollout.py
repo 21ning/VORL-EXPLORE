@@ -19,7 +19,7 @@ POGEMA_VERSION = "1.1.1"
 UNKNOWN_COLOR = "#e0e0e0"
 UNKNOWN_OPACITY = 0.55
 OBSERVER_UNKNOWN_COLOR = "#808080"
-OBSERVER_UNKNOWN_OPACITY = 0.15
+OBSERVER_UNKNOWN_OPACITY = 0.55
 DYNAMIC_COLOR = "#737373"
 DYNAMIC_OPACITY = 1
 GRID_COLOR = "#8a8a8a"
@@ -390,7 +390,7 @@ def render(run, output, stride=1, *, require_success=False, svg_only=False, widt
               "svg_sha256": hashlib.sha256(svg.read_bytes()).hexdigest()}
     if observer:
         report.update(view="observer ground truth with gray overlay on team-unexplored cells",
-                      map_style="original geometry under 15% gray overlay; grid lines above overlay",
+                      map_style=f"original geometry under {OBSERVER_UNKNOWN_OPACITY:.0%} gray overlay; grid lines above overlay",
                       unknown_mask_color=OBSERVER_UNKNOWN_COLOR, unknown_mask_opacity=OBSERVER_UNKNOWN_OPACITY,
                       unobserved_occupancy="visible to viewer under gray overlay; not supplied to agents",
                       recorded_shared_map_unchanged=True)
@@ -439,7 +439,7 @@ if __name__ == "__main__":
     parser.add_argument("--width", type=int, default=280, help="GIF width in pixels")
     parser.add_argument("--svg-only", action="store_true", help="Export native SVG without CairoSVG")
     parser.add_argument("--require-success", action="store_true", help="Reject runs with remaining frontiers")
-    parser.add_argument("--observer", action="store_true", help="Show full terrain under a 15%% gray unknown overlay; display only")
+    parser.add_argument("--observer", action="store_true", help=f"Show full terrain under a {OBSERVER_UNKNOWN_OPACITY:.0%} gray unknown overlay; display only".replace("%", "%%"))
     args = parser.parse_args()
     render(args.run, args.output, args.stride, require_success=args.require_success,
            svg_only=args.svg_only, width=args.width, observer=args.observer)
