@@ -70,10 +70,9 @@ The default paths are `models/epom` and `checkpoints/fidelity-gate.json`. Paths
 for bundled config/gate/model defaults are resolved relative to the checkout;
 explicit paths and `--output` are relative to the current working directory.
 
-The EPOM release comes from the upstream When to Switch project. Its training
-distribution differs from the paper's described from-scratch PPO protocol. The
-small gate checkpoint is fitted for this implementation and retains its original
-provenance metadata. Gate fitting is not EPOM/PPO training.
+The EPOM training distribution differs from the paper's described from-scratch
+PPO protocol. The small gate checkpoint is fitted for this implementation and
+retains its original provenance metadata. Gate fitting is not EPOM/PPO training.
 
 For offline setup, transfer the official upstream `weights.zip` archive and run:
 
